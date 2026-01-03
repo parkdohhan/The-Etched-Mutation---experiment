@@ -55,8 +55,9 @@ export async function listMemoriesWithScenesChoices(client) {
                     nextScene: 'end',
                     percentage: 0
                 })),
-                originalChoice: 0,
-                originalReason: ''
+                originalChoice: scene.original_choice || 0,
+                originalReason: scene.original_reason || '',
+                originalEmotion: scene.original_emotion ? (typeof scene.original_emotion === 'string' ? JSON.parse(scene.original_emotion) : scene.original_emotion) : null
             };
         }));
 
@@ -193,7 +194,10 @@ export async function saveMemoryGraph(client, memoryPayload) {
             echo_words: echoWords,
             emotion_dist: emotionDistObj,
             scene_type: scene.sceneType || 'normal',
-            void_info: scene.voidInfo || null
+            void_info: scene.voidInfo || null,
+            original_choice: scene.originalChoice !== undefined ? scene.originalChoice : null,
+            original_reason: scene.originalReason || null,
+            original_emotion: scene.originalEmotion ? (typeof scene.originalEmotion === 'string' ? scene.originalEmotion : JSON.stringify(scene.originalEmotion)) : null
         };
 
         const { data: sceneData, error: sceneError } = await client

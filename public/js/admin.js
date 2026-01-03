@@ -196,7 +196,10 @@ async function deleteMemory(index) {
         // 로컬 배열에서 제거
         memories.splice(index, 1);
         saveMemoriesToStorage(); // 백업용
-        renderMemoriesTable();
+        
+        // 목록 갱신
+        await loadMemories(); // memories 배열 최신화
+        await loadAllSessions(); // 통합 목록 갱신
         
         alert('기억이 삭제되었습니다.');
     } catch (error) {
@@ -207,13 +210,14 @@ async function deleteMemory(index) {
 
 // 장면 추가
 function addScene() {
-    currentScenes.push({
+        currentScenes.push({
         text: '',
         sceneType: 'normal',
         echoWords: [],
         choices: [],
         originalChoice: 0,
         originalReason: '',
+        originalEmotion: null,
         voidInfo: null
     });
     renderScenes();
@@ -259,7 +263,7 @@ function renderScenes() {
             </div>
             <div class="editor-input-group scene-original-fields" data-scene-index="${sceneIndex}" style="display: ${(scene.sceneType === 'branch' || scene.sceneType === 'ending') ? 'block' : 'none'};">
                 <label class="editor-label">원본 이유</label>
-                <input type="text" class="editor-input scene-original-reason-input" data-scene-index="${sceneIndex}" placeholder="왜 그 선택을 했나요?" value="${scene.originalReason || ''}">
+                <input type="text" class="editor-input scene-original-reason-input" data-scene-index="${sceneIndex}" placeholder="원본 기록자의 이유 (예: 내가 살릴 수 있었는데...)" value="${scene.originalReason || ''}">
             </div>
             <div class="scene-void-section" data-scene-index="${sceneIndex}">
                 <h4>VOID 설정</h4>
@@ -268,6 +272,16 @@ function renderScenes() {
                 <label>Reason Void <input type="checkbox" class="reason-void-toggle" data-scene-index="${sceneIndex}" ${(scene.voidInfo && scene.voidInfo.reasonVoid) ? 'checked' : ''}></label>
                 <button class="auto-detect-void-btn" data-scene-index="${sceneIndex}">자동 감지</button>
                 <p class="void-level-display" data-scene-index="${sceneIndex}">VOID Level: ${(scene.voidInfo && scene.voidInfo.voidLevel) ? scene.voidInfo.voidLevel.charAt(0).toUpperCase() + scene.voidInfo.voidLevel.slice(1) : 'Low'}</p>
+            </div>
+            <div class="editor-section scene-original-fields" data-scene-index="${sceneIndex}" style="display: ${(scene.sceneType === 'branch' || scene.sceneType === 'ending') ? 'block' : 'none'}; margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-surface); border: 1px solid rgba(196, 168, 130, .2); border-radius: 4px;">
+                <h3 class="editor-section-title" style="margin-bottom: 1rem;">원본 감정/이유 (정렬도 비교용)</h3>
+                <div class="editor-input-group" style="margin-bottom: 1.5rem;">
+                    <label class="editor-label">원본 감정</label>
+                    <div class="original-emotion-list" data-scene-index="${sceneIndex}">
+                        ${renderOriginalEmotions(scene.originalEmotion || {}, sceneIndex)}
+                    </div>
+                    <button class="add-emotion-btn" onclick="addOriginalEmotion(${sceneIndex})" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: var(--accent-memory); color: var(--bg-deep); border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">+ 감정 추가</button>
+                </div>
             </div>
             <div class="editor-input-group">
                 <label class="editor-label">선택지</label>
@@ -325,6 +339,44 @@ function renderOriginalChoiceOptions(choices, selectedValue) {
     return choices.map((choice, index) => 
         `<option value="${index}" ${selectedValue === index ? 'selected' : ''}>선택지 ${index + 1}: ${choice.text || '(텍스트 없음)'}</option>`
     ).join('');
+}
+
+// 원본 감정 렌더링
+function renderOriginalEmotions(originalEmotion, sceneIndex) {
+    if (!originalEmotion || Object.keys(originalEmotion).length === 0) {
+        return '<div style="color: var(--text-muted); padding: 1rem; text-align: center;">감정이 없습니다</div>';
+    }
+    
+    const emotionLabels = {
+        fear: '공포',
+        sadness: '슬픔',
+        guilt: '죄책감',
+        anger: '분노',
+        longing: '그리움',
+        isolation: '고립감',
+        numbness: '무감각',
+        shame: '수치심',
+        moral_pain: '도덕적 고통'
+    };
+    
+    return Object.entries(originalEmotion).map(([emotion, intensity], index) => `
+        <div class="original-emotion-item" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-deep); border-radius: 4px;">
+            <select class="original-emotion-select" data-scene-index="${sceneIndex}" data-emotion-index="${index}" style="flex: 1; padding: 0.4rem; background: var(--bg-surface); border: 1px solid rgba(196, 168, 130, .3); color: var(--text-primary); border-radius: 4px;">
+                <option value="fear" ${emotion === 'fear' ? 'selected' : ''}>${emotionLabels.fear}</option>
+                <option value="sadness" ${emotion === 'sadness' ? 'selected' : ''}>${emotionLabels.sadness}</option>
+                <option value="guilt" ${emotion === 'guilt' ? 'selected' : ''}>${emotionLabels.guilt}</option>
+                <option value="anger" ${emotion === 'anger' ? 'selected' : ''}>${emotionLabels.anger}</option>
+                <option value="longing" ${emotion === 'longing' ? 'selected' : ''}>${emotionLabels.longing}</option>
+                <option value="isolation" ${emotion === 'isolation' ? 'selected' : ''}>${emotionLabels.isolation}</option>
+                <option value="numbness" ${emotion === 'numbness' ? 'selected' : ''}>${emotionLabels.numbness}</option>
+                <option value="shame" ${emotion === 'shame' ? 'selected' : ''}>${emotionLabels.shame}</option>
+                <option value="moral_pain" ${emotion === 'moral_pain' ? 'selected' : ''}>${emotionLabels.moral_pain}</option>
+            </select>
+            <input type="range" class="original-emotion-intensity" data-scene-index="${sceneIndex}" data-emotion-index="${index}" min="0" max="1" step="0.01" value="${intensity}" style="flex: 2;">
+            <span class="original-emotion-value" style="min-width: 3rem; text-align: right; color: var(--accent-memory);">${(intensity * 100).toFixed(0)}%</span>
+            <button class="remove-emotion-btn" onclick="removeOriginalEmotion(${sceneIndex}, ${index})" style="padding: 0.3rem 0.6rem; background: var(--bg-surface); border: 1px solid rgba(196, 168, 130, .3); color: var(--text-primary); border-radius: 4px; cursor: pointer;">삭제</button>
+        </div>
+    `).join('');
 }
 
 // 다음 장면 옵션 렌더링
@@ -462,10 +514,13 @@ function attachSceneListeners() {
             currentScenes[sceneIndex].sceneType = this.value;
             // 타입 변경 시 원본 필드 표시/숨김 업데이트
             const originalFields = document.querySelectorAll(`.scene-original-fields[data-scene-index="${sceneIndex}"]`);
+            const originalSection = document.querySelector(`.editor-section.scene-original-fields[data-scene-index="${sceneIndex}"]`);
             if (this.value === 'branch' || this.value === 'ending') {
                 originalFields.forEach(field => field.style.display = 'block');
+                if (originalSection) originalSection.style.display = 'block';
             } else {
                 originalFields.forEach(field => field.style.display = 'none');
+                if (originalSection) originalSection.style.display = 'none';
             }
             // 다음 장면 선택 드롭다운 업데이트 (타입 표시 반영)
             renderScenes();
@@ -485,6 +540,29 @@ function attachSceneListeners() {
         input.addEventListener('input', function() {
             const sceneIndex = parseInt(this.dataset.sceneIndex);
             currentScenes[sceneIndex].originalReason = this.value.trim();
+        });
+    });
+
+    // 원본 감정 선택 변경
+    document.querySelectorAll('.original-emotion-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const sceneIndex = parseInt(this.dataset.sceneIndex);
+            const emotionIndex = parseInt(this.dataset.emotionIndex);
+            updateOriginalEmotion(sceneIndex, emotionIndex);
+        });
+    });
+
+    // 원본 감정 강도 변경
+    document.querySelectorAll('.original-emotion-intensity').forEach(slider => {
+        slider.addEventListener('input', function() {
+            const sceneIndex = parseInt(this.dataset.sceneIndex);
+            const emotionIndex = parseInt(this.dataset.emotionIndex);
+            const value = parseFloat(this.value);
+            const valueDisplay = this.parentElement.querySelector('.original-emotion-value');
+            if (valueDisplay) {
+                valueDisplay.textContent = (value * 100).toFixed(0) + '%';
+            }
+            updateOriginalEmotion(sceneIndex, emotionIndex);
         });
     });
 
@@ -669,6 +747,58 @@ function updateVoidLevel(sceneIndex) {
     if (voidLevelDisplay) {
         voidLevelDisplay.textContent = `VOID Level: ${scene.voidInfo.voidLevel.charAt(0).toUpperCase() + scene.voidInfo.voidLevel.slice(1)}`;
         voidLevelDisplay.className = `void-level-display ${scene.voidInfo.voidLevel}`;
+    }
+}
+
+// 원본 감정 추가
+function addOriginalEmotion(sceneIndex) {
+    if (!currentScenes[sceneIndex].originalEmotion) {
+        currentScenes[sceneIndex].originalEmotion = {};
+    }
+    // 기본값으로 fear 추가
+    currentScenes[sceneIndex].originalEmotion['fear'] = 0.5;
+    renderScenes();
+}
+
+// 원본 감정 삭제
+function removeOriginalEmotion(sceneIndex, emotionIndex) {
+    if (!currentScenes[sceneIndex].originalEmotion) return;
+    
+    const emotions = Object.keys(currentScenes[sceneIndex].originalEmotion);
+    if (emotionIndex >= 0 && emotionIndex < emotions.length) {
+        const emotionKey = emotions[emotionIndex];
+        delete currentScenes[sceneIndex].originalEmotion[emotionKey];
+        
+        // 빈 객체가 되면 null로 설정
+        if (Object.keys(currentScenes[sceneIndex].originalEmotion).length === 0) {
+            currentScenes[sceneIndex].originalEmotion = null;
+        }
+        renderScenes();
+    }
+}
+
+// 원본 감정 업데이트
+function updateOriginalEmotion(sceneIndex, emotionIndex) {
+    if (!currentScenes[sceneIndex].originalEmotion) {
+        currentScenes[sceneIndex].originalEmotion = {};
+    }
+    
+    const emotions = Object.keys(currentScenes[sceneIndex].originalEmotion);
+    if (emotionIndex >= 0 && emotionIndex < emotions.length) {
+        const oldEmotionKey = emotions[emotionIndex];
+        const select = document.querySelector(`.original-emotion-select[data-scene-index="${sceneIndex}"][data-emotion-index="${emotionIndex}"]`);
+        const slider = document.querySelector(`.original-emotion-intensity[data-scene-index="${sceneIndex}"][data-emotion-index="${emotionIndex}"]`);
+        
+        if (select && slider) {
+            const newEmotionKey = select.value;
+            const intensity = parseFloat(slider.value);
+            
+            // 기존 감정 삭제
+            delete currentScenes[sceneIndex].originalEmotion[oldEmotionKey];
+            
+            // 새 감정 추가
+            currentScenes[sceneIndex].originalEmotion[newEmotionKey] = intensity;
+        }
     }
 }
 
@@ -1333,7 +1463,8 @@ function convertToMemoriesDataFormat(adminMemories) {
                 choices: processedChoices,
                 emotionDist: emotionDist,
                 originalChoice: scene.originalChoice || 0,
-                originalReason: scene.originalReason || ''
+                originalReason: scene.originalReason || '',
+                originalEmotion: scene.originalEmotion || null
             };
         });
 
@@ -1413,7 +1544,8 @@ function importMemoriesJSON(event) {
                         percentage: choice.percentage || 0
                     })),
                     originalChoice: scene.originalChoice !== undefined ? scene.originalChoice : 0,
-                    originalReason: scene.originalReason || ''
+                    originalReason: scene.originalReason || '',
+                originalEmotion: scene.originalEmotion || null
                 })),
                 interpretationLayers: memory.layers || 0,
                 visible: true
@@ -1599,17 +1731,20 @@ function renderSessions() {
     }
     
     container.innerHTML = filtered.map(session => `
-        <div class="session-card ${session.type}" data-session-id="${session.id}" onclick="openSessionDetail('${session.id}', '${session.type}')">
+        <div class="session-card ${session.type}" data-session-id="${session.id}">
             <input type="checkbox" class="session-checkbox" onclick="event.stopPropagation(); updateSelectedCount()" data-id="${session.id}" data-type="${session.type}">
-            <div class="session-header">
-                <span class="session-title">${session.displayTitle}</span>
-                ${session.type === 'live' ? '<span class="live-tag">LIVE</span>' : ''}
+            <div class="session-content" onclick="openSessionDetail('${session.id}', '${session.type}')" style="flex: 1; cursor: pointer;">
+                <div class="session-header">
+                    <span class="session-title">${session.displayTitle}</span>
+                    ${session.type === 'live' ? '<span class="live-tag">LIVE</span>' : ''}
+                </div>
+                <div class="session-meta">
+                    <span>${new Date(session.created_at).toLocaleString('ko-KR')}</span>
+                    ${session.type === 'live' ? `<span>정렬도: ${((session.alignment || 0) * 100).toFixed(0)}%</span>` : `<span>레이어: ${session.layers || 0}</span>`}
+                </div>
+                ${session.type === 'live' && session.memory_fate ? `<div class="session-fate" style="color: ${fateColors[session.memory_fate] || '#666'}; margin-top: 0.5rem; font-size: 0.9rem;">운명: ${fateLabels[session.memory_fate] || '미정'}</div>` : ''}
             </div>
-            <div class="session-meta">
-                <span>${new Date(session.created_at).toLocaleString('ko-KR')}</span>
-                ${session.type === 'live' ? `<span>정렬도: ${((session.alignment || 0) * 100).toFixed(0)}%</span>` : `<span>레이어: ${session.layers || 0}</span>`}
-            </div>
-            ${session.type === 'live' && session.memory_fate ? `<div class="session-fate" style="color: ${fateColors[session.memory_fate] || '#666'}; margin-top: 0.5rem; font-size: 0.9rem;">운명: ${fateLabels[session.memory_fate] || '미정'}</div>` : ''}
+            <button class="session-delete-btn" onclick="event.stopPropagation(); deleteSessionById('${session.id}', '${session.type}')" style="padding: 0.5rem 1rem; background: var(--accent-live); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-left: 1rem;">삭제</button>
         </div>
     `).join('');
     updateSelectedCount();
@@ -1638,26 +1773,88 @@ function updateSelectedCount() {
     }
 }
 
+async function deleteSessionById(id, type) {
+    if (!confirm(`${type === 'archive' ? '아카이브' : '라이브 세션'}을 삭제하시겠습니까?\n관련된 장면 데이터도 함께 삭제됩니다.`)) {
+        return;
+    }
+    
+    try {
+        const supabaseClient = await getSupabaseClient();
+        if (!supabaseClient) {
+            throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
+        }
+        
+        if (type === 'archive') {
+            await deleteMemoryGraph(supabaseClient, id);
+        } else {
+            await supabaseClient.from('live_scenes').delete().eq('session_id', id);
+            await supabaseClient.from('live_sessions').delete().eq('id', id);
+        }
+        
+        alert(`${type === 'archive' ? '아카이브' : '라이브 세션'}이 삭제되었습니다`);
+        await loadMemories(); // memories 배열 최신화
+        await loadAllSessions(); // 통합 목록 갱신
+    } catch (e) {
+        console.error('Delete error:', e);
+        alert('삭제 중 오류가 발생했습니다: ' + e.message);
+    }
+}
+
 async function deleteSelectedSessions() {
     const checkboxes = document.querySelectorAll('.session-checkbox:checked');
     const liveSessions = Array.from(checkboxes).filter(cb => cb.dataset.type === 'live').map(cb => cb.dataset.id);
-    if (liveSessions.length === 0) {
-        alert('삭제할 라이브 세션을 선택하세요');
+    const archiveSessions = Array.from(checkboxes).filter(cb => cb.dataset.type === 'archive').map(cb => cb.dataset.id);
+    
+    if (liveSessions.length === 0 && archiveSessions.length === 0) {
+        alert('삭제할 세션을 선택하세요');
         return;
     }
-    if (!confirm(`${liveSessions.length}개의 라이브 세션을 삭제하시겠습니까?\n관련된 장면 데이터도 함께 삭제됩니다.`)) {
+    
+    let confirmMessage = '';
+    if (liveSessions.length > 0 && archiveSessions.length > 0) {
+        confirmMessage = `${liveSessions.length}개의 라이브 세션과 ${archiveSessions.length}개의 아카이브를 삭제하시겠습니까?`;
+    } else if (liveSessions.length > 0) {
+        confirmMessage = `${liveSessions.length}개의 라이브 세션을 삭제하시겠습니까?\n관련된 장면 데이터도 함께 삭제됩니다.`;
+    } else {
+        confirmMessage = `${archiveSessions.length}개의 아카이브를 삭제하시겠습니까?\n관련된 장면 데이터도 함께 삭제됩니다.`;
+    }
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
+    
     try {
+        const supabaseClient = await getSupabaseClient();
+        if (!supabaseClient) {
+            throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
+        }
+        
+        // 라이브 세션 삭제
         for (const id of liveSessions) {
             await supabaseClient.from('live_scenes').delete().eq('session_id', id);
             await supabaseClient.from('live_sessions').delete().eq('id', id);
         }
-        alert(`${liveSessions.length}개의 라이브 세션이 삭제되었습니다`);
-        loadAllSessions();
+        
+        // 아카이브 메모리 삭제
+        for (const id of archiveSessions) {
+            await deleteMemoryGraph(supabaseClient, id);
+        }
+        
+        let successMessage = '';
+        if (liveSessions.length > 0 && archiveSessions.length > 0) {
+            successMessage = `${liveSessions.length}개의 라이브 세션과 ${archiveSessions.length}개의 아카이브가 삭제되었습니다`;
+        } else if (liveSessions.length > 0) {
+            successMessage = `${liveSessions.length}개의 라이브 세션이 삭제되었습니다`;
+        } else {
+            successMessage = `${archiveSessions.length}개의 아카이브가 삭제되었습니다`;
+        }
+        
+        alert(successMessage);
+        await loadMemories(); // memories 배열 최신화
+        await loadAllSessions(); // 통합 목록 갱신
     } catch (e) {
         console.error('Delete error:', e);
-        alert('삭제 중 오류가 발생했습니다');
+        alert('삭제 중 오류가 발생했습니다: ' + e.message);
     }
 }
 
@@ -1907,6 +2104,7 @@ window.logout = logout;
 window.addNewMemory = addNewMemory;
 window.editMemory = editMemory;
 window.deleteMemory = deleteMemory;
+window.deleteSessionById = deleteSessionById;
 window.toggleMemoryVisibility = toggleMemoryVisibility;
 window.filterSessions = filterSessions;
 window.toggleSelectAll = toggleSelectAll;
@@ -1933,4 +2131,6 @@ window.addChoice = addChoice;
 window.deleteChoice = deleteChoice;
 window.loadArchiveLayers = loadArchiveLayers;
 window.updateSelectedCount = updateSelectedCount;
+window.addOriginalEmotion = addOriginalEmotion;
+window.removeOriginalEmotion = removeOriginalEmotion;
 

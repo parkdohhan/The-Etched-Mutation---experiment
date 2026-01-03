@@ -63,7 +63,7 @@ function backToIntro(){const introScreen=document.getElementById('introScreen');
 function backToModeSelection(){const sessionSetupEl=document.getElementById('sessionSetup');if(sessionSetupEl){sessionSetupEl.classList.remove('active');sessionSetupEl.style.display='none'}const modeSelectionEl=document.getElementById('modeSelection');if(modeSelectionEl){modeSelectionEl.classList.add('active');modeSelectionEl.style.cssText='display:flex !important;z-index:1900 !important;position:fixed !important;top:0 !important;left:0 !important;width:100% !important;height:100% !important'}}
 async function enterArchive(){const introScreen=document.getElementById('introScreen');const archiveContainer=document.getElementById('archiveContainer');if(introScreen){introScreen.classList.add('hidden');introScreen.style.cssText='display:none !important;opacity:0 !important;visibility:hidden !important;pointer-events:none !important;z-index:-1 !important'}['modeSelection','endScreen','liveContainer','sceneViewer'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active');el.style.display='none'}});if(archiveContainer){archiveContainer.classList.add('active');archiveContainer.style.cssText='display:block !important;z-index:1900 !important'}const memoryListEl=document.getElementById('memoryList');if(memoryListEl)memoryListEl.style.display='grid';const archiveControlsEl=document.getElementById('archiveControls');if(archiveControlsEl)archiveControlsEl.style.display='flex';const archiveHeaderEl=document.querySelector('.archive-header');if(archiveHeaderEl)archiveHeaderEl.style.display='block';currentMode='archive';stopAllAnimations();await loadMemoriesFromSupabase();setTimeout(()=>showNpcDialogue("여기는 아카이브야. 한 번 상연된 기억 위에, 다른 사람들의 해석이 지층처럼 쌓여 있어.",5000),1000);const archiveSearchEl=document.getElementById('archiveSearch');if(archiveSearchEl)archiveSearchEl.value='';renderMemoryCards();sortMemories('all');const footer=document.querySelector('.footer');if(footer)footer.classList.add('visible')}
 function filterByCategory(category,btnElement){if(!category)return;currentCategory=category;const categoryBtns=document.querySelectorAll('.category-btn');categoryBtns.forEach(btn=>btn.classList.remove('active'));if(btnElement)btnElement.classList.add('active');renderMemoryCards()}
-async function loadMemoriesFromSupabase(){try{supabaseClient = getSupabaseClient(); if(!supabaseClient){console.log('[loadMemoriesFromSupabase] Supabase 클라이언트가 아직 초기화되지 않았습니다');return}console.log('[loadMemoriesFromSupabase] Supabase에서 기억 불러오기 시작');const{data:memoriesDataSupabase,error:memoriesError}=await supabaseClient.from('memories').select('*').eq('is_public',true).order('id',{ascending:true});if(memoriesError){console.error('[loadMemoriesFromSupabase] memories 조회 실패',memoriesError);return}if(!memoriesDataSupabase||memoriesDataSupabase.length===0){console.log('[loadMemoriesFromSupabase] Supabase에 공개된 기억이 없습니다');allMemoriesData=[...(window.memoriesData || memoriesData || [])];return}console.log(`[loadMemoriesFromSupabase] ${memoriesDataSupabase.length}개의 메모리 발견`);const supabaseMemories=await Promise.all(memoriesDataSupabase.map(async(memory)=>{const{data:scenesData,error:scenesError}=await supabaseClient.from('scenes').select('*').eq('memory_id',memory.id).order('scene_order',{ascending:true});if(scenesError){console.error(`[loadMemoriesFromSupabase] Memory ${memory.id} scenes 조회 실패`,scenesError);return null}const scenes=await Promise.all((scenesData||[]).map(async(scene)=>{const{data:choicesData,error:choicesError}=await supabaseClient.from('choices').select('*').eq('scene_id',scene.id).order('choice_order',{ascending:true});if(choicesError){console.error(`[loadMemoriesFromSupabase] Scene ${scene.id} choices 조회 실패`,choicesError);return null}const echoWords=Array.isArray(scene.echo_words)?scene.echo_words:(typeof scene.echo_words==='string'?JSON.parse(scene.echo_words):[]);const emotionDist=scene.emotion_dist||{};return{text:scene.text||'',sceneType:scene.scene_type||'normal',echoWords:echoWords,choices:(choicesData||[]).map(choice=>({text:choice.text||'',emotion:choice.emotion||'fear',intensity:choice.intensity||5,nextScene:choice.nextScene||'end',percentage:0})),emotionDist:emotionDist,originalChoice:0,originalReason:''}}));const validScenes=scenes.filter(s=>s!==null);const isLive=!!memory.live_session_id;return{id:memory.id,code:memory.code||'',title:memory.title||'',layers:memory.layers||0,dilution:memory.dilution||50,recentRank:memory.id||0,scenes:validScenes,live_session_id:memory.live_session_id,is_live:isLive}}));const validSupabaseMemories=supabaseMemories.filter(m=>m!==null);allMemoriesData=[...memoriesData,...validSupabaseMemories];console.log(`[loadMemoriesFromSupabase] 완료: ${memoriesData.length}개(로컬) + ${validSupabaseMemories.length}개(Supabase) = ${allMemoriesData.length}개`)}catch(error){console.error('[loadMemoriesFromSupabase] 에러 발생',error);allMemoriesData=[...(window.memoriesData || memoriesData || [])]}}
+async function loadMemoriesFromSupabase(){try{supabaseClient = getSupabaseClient(); if(!supabaseClient){console.log('[loadMemoriesFromSupabase] Supabase 클라이언트가 아직 초기화되지 않았습니다');return}console.log('[loadMemoriesFromSupabase] Supabase에서 기억 불러오기 시작');const{data:memoriesDataSupabase,error:memoriesError}=await supabaseClient.from('memories').select('*').eq('is_public',true).order('id',{ascending:true});if(memoriesError){console.error('[loadMemoriesFromSupabase] memories 조회 실패',memoriesError);return}if(!memoriesDataSupabase||memoriesDataSupabase.length===0){console.log('[loadMemoriesFromSupabase] Supabase에 공개된 기억이 없습니다');allMemoriesData=[...(window.memoriesData || memoriesData || [])];return}console.log(`[loadMemoriesFromSupabase] ${memoriesDataSupabase.length}개의 메모리 발견`);const supabaseMemories=await Promise.all(memoriesDataSupabase.map(async(memory)=>{const{data:scenesData,error:scenesError}=await supabaseClient.from('scenes').select('*').eq('memory_id',memory.id).order('scene_order',{ascending:true});if(scenesError){console.error(`[loadMemoriesFromSupabase] Memory ${memory.id} scenes 조회 실패`,scenesError);return null}const scenes=await Promise.all((scenesData||[]).map(async(scene)=>{const{data:choicesData,error:choicesError}=await supabaseClient.from('choices').select('*').eq('scene_id',scene.id).order('choice_order',{ascending:true});if(choicesError){console.error(`[loadMemoriesFromSupabase] Scene ${scene.id} choices 조회 실패`,choicesError);return null}const echoWords=Array.isArray(scene.echo_words)?scene.echo_words:(typeof scene.echo_words==='string'?JSON.parse(scene.echo_words):[]);const emotionDist=scene.emotion_dist||{};return{id:scene.id,text:scene.text||'',sceneType:scene.scene_type||'normal',echoWords:echoWords,choices:(choicesData||[]).map(choice=>({text:choice.text||'',emotion:choice.emotion||'fear',intensity:choice.intensity||5,nextScene:choice.nextScene||'end',percentage:0})),emotionDist:emotionDist,voidInfo:scene.void_info||null,originalChoice:scene.original_choice!==undefined?scene.original_choice:0,originalReason:scene.original_reason||'',originalEmotion:scene.original_emotion?(typeof scene.original_emotion==='string'?JSON.parse(scene.original_emotion):scene.original_emotion):null}}));const validScenes=scenes.filter(s=>s!==null);const isLive=!!memory.live_session_id;return{id:memory.id,code:memory.code||'',title:memory.title||'',layers:memory.layers||0,dilution:memory.dilution||50,recentRank:memory.id||0,scenes:validScenes,live_session_id:memory.live_session_id,is_live:isLive}}));const validSupabaseMemories=supabaseMemories.filter(m=>m!==null);allMemoriesData=[...memoriesData,...validSupabaseMemories];console.log(`[loadMemoriesFromSupabase] 완료: ${memoriesData.length}개(로컬) + ${validSupabaseMemories.length}개(Supabase) = ${allMemoriesData.length}개`)}catch(error){console.error('[loadMemoriesFromSupabase] 에러 발생',error);allMemoriesData=[...(window.memoriesData || memoriesData || [])]}}
 function renderMemoryCards(){const list=document.getElementById('memoryList');if(!list)return;if(!allMemoriesData||allMemoriesData.length===0){list.innerHTML='<div class="mypage-info" style="color:var(--text-ghost);font-style:italic;text-align:center;padding:2rem">기억이 없습니다.</div>';return}let filteredMemories=[...allMemoriesData];if(currentCategory==='live'){filteredMemories=filteredMemories.filter(m=>(m.live_session_id||m.is_live))}else if(currentCategory==='archive'){filteredMemories=filteredMemories.filter(m=>(!m.live_session_id&&!m.is_live))}let sortedMemories;if(currentSort==='all'){sortedMemories=filteredMemories}else if(currentSort==='popular'){sortedMemories=[...filteredMemories].sort((a,b)=>(b.layers||0)-(a.layers||0))}else if(currentSort==='recent'){sortedMemories=[...filteredMemories].sort((a,b)=>(b.recentRank||0)-(a.recentRank||0))}list.innerHTML='';if(sortedMemories.length===0){list.innerHTML='<div class="mypage-info" style="color:var(--text-ghost);font-style:italic;text-align:center;padding:2rem">해당 카테고리의 기억이 없습니다.</div>';return}sortedMemories.forEach((memory,index)=>{const originalIndex=allMemoriesData.findIndex(m=>m.id===memory.id);const card=document.createElement('div');card.className='memory-card';card.setAttribute('data-code',memory.code||'');card.setAttribute('data-layers',memory.layers||0);card.setAttribute('data-recent',memory.recentRank||0);const isLive=!!(memory.live_session_id||memory.is_live);card.setAttribute('data-category',isLive?'live':'archive');card.setAttribute('onclick',`selectMemory(${originalIndex>=0?originalIndex:index})`);const categoryLabel=isLive?'<span class="memory-category-badge live">라이브</span>':'<span class="memory-category-badge archive">아카이브</span>';card.innerHTML=`${categoryLabel}<h3 class="memory-card-title">${memory.title||'제목 없음'}</h3><p class="memory-card-meta">원본: ${memory.code||'—'} · 해석 레이어: ${memory.layers||0}개</p><div class="memory-card-dilution"><span>원본</span><div class="dilution-bar"><div class="dilution-fill" style="width:${memory.dilution||50}%"></div></div><span>${memory.dilution||50}%</span></div>`;list.appendChild(card)});filterMemories()}
 function filterMemories(){const searchValue=document.getElementById('archiveSearch').value.toUpperCase().trim();const cards=document.querySelectorAll('.memory-card');cards.forEach(card=>{const code=card.getAttribute('data-code')||'';const category=card.getAttribute('data-category')||'archive';let shouldShow=true;if(currentCategory==='live'&&category!=='live')shouldShow=false;else if(currentCategory==='archive'&&category!=='archive')shouldShow=false;if(shouldShow&&(searchValue===''||code.includes(searchValue))){card.classList.remove('hidden');card.style.display='block';if(searchValue!==''&&code===searchValue){setTimeout(()=>{card.scrollIntoView({behavior:'smooth',block:'center'});card.style.transform='scale(1.05)';setTimeout(()=>card.style.transform='',500)},100)}}else{card.classList.add('hidden');card.style.display='none'}})}
 function sortMemories(sortType,btnElement){currentSort=sortType;const filterBtns=document.querySelectorAll('.filter-btn');filterBtns.forEach(btn=>btn.classList.remove('active'));if(btnElement)btnElement.classList.add('active');renderMemoryCards()}
@@ -71,7 +71,152 @@ function selectRole(role){try{currentRole=role;currentMode='live';const modeSele
 function generateSessionCode(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';for(let i=0;i<5;i++)code+=chars.charAt(Math.floor(Math.random()*chars.length));sessionCode=code;document.getElementById('sessionCode').textContent=code;document.getElementById('waitingForB').classList.add('active');createLiveSession()}
 function copySessionCode(){navigator.clipboard.writeText(sessionCode);showNotification('코드가 복사되었습니다')}
 function joinSession(){joinLiveSession()}
-async function createLiveSession(){supabaseClient = getSupabaseClient(); if(!supabaseClient){console.error('supabaseClient가 초기화되지 않음');showNotification('시스템 초기화 중입니다. 잠시 후 다시 시도해주세요.');setTimeout(()=>{if(supabaseClient)createLiveSession()},500);return null}if(currentRole!=='A'){console.warn('화자가 아닙니다');return null}let userId;if(currentUser){userId=currentUser.id}else{if(!window.anonymousUserId){window.anonymousUserId=crypto.randomUUID()}userId=window.anonymousUserId}try{const sessionData={session_code:sessionCode,narrator_id:userId,experiencer_id:null,alignment:0};const{data,error}=await supabaseClient.from('live_sessions').insert(sessionData).select().single();if(error)throw error;console.log('Session created:',data.id);currentSessionId=data.id;subscribeToSessionJoin();subscribeToExperiencerChoices();return data.id}catch(e){console.error('createLiveSession error:',e);showNotification('세션 생성에 실패했습니다: '+e.message);return null}}
+async function createLiveSession(){
+    console.log('=== createLiveSession 시작 ===');
+    console.log('sessionCode:', sessionCode);
+    console.log('currentRole:', currentRole);
+    
+    // Supabase 클라이언트 초기화 대기
+    let retryCount = 0;
+    const maxRetries = 20; // 최대 10초 대기 (20 * 500ms)
+    
+    while(retryCount < maxRetries) {
+        supabaseClient = getSupabaseClient();
+        if(supabaseClient) {
+            console.log('Supabase 클라이언트 초기화 완료');
+            break;
+        }
+        console.log(`Supabase 클라이언트 대기 중... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retryCount++;
+    }
+    
+    if(!supabaseClient){
+        console.error('supabaseClient가 초기화되지 않음 (최대 대기 시간 초과)');
+        console.error('window.supabase 존재 여부:', typeof window.supabase !== 'undefined');
+        showNotification('Supabase 연결에 실패했습니다. 네트워크 연결을 확인해주세요.');
+        return null;
+    }
+    
+    if(currentRole!=='A'){
+        console.warn('화자가 아닙니다');
+        return null;
+    }
+    
+    let userId;
+    if(currentUser){
+        userId=currentUser.id;
+    }else{
+        if(!window.anonymousUserId){
+            window.anonymousUserId=crypto.randomUUID();
+        }
+        userId=window.anonymousUserId;
+    }
+    
+    console.log('userId:', userId);
+    
+    try{
+        // 네트워크 연결 확인
+        console.log('네트워크 연결 확인 중...');
+        try {
+            const testResponse = await fetch('https://bxmppaxpzbkwebfbgpsm.supabase.co/rest/v1/', {
+                method: 'HEAD',
+                mode: 'no-cors' // CORS 오류 무시하고 연결만 확인
+            });
+            console.log('네트워크 연결 확인 완료');
+        } catch (networkError) {
+            console.warn('네트워크 연결 확인 실패 (계속 진행):', networkError);
+        }
+        
+        const sessionData={
+            session_code:sessionCode,
+            narrator_id:userId,
+            experiencer_id:null,
+            alignment:0
+        };
+        
+        console.log('세션 데이터 삽입 시도:', sessionData);
+        console.log('Supabase URL:', supabaseClient.supabaseUrl);
+        
+        let data, error;
+        try {
+            const result = await supabaseClient
+                .from('live_sessions')
+                .insert(sessionData)
+                .select()
+                .single();
+            data = result.data;
+            error = result.error;
+        } catch (fetchError) {
+            console.error('Fetch 오류 발생:', fetchError);
+            console.error('Fetch 오류 타입:', fetchError.constructor.name);
+            console.error('Fetch 오류 메시지:', fetchError.message);
+            
+            // DNS 해석 실패 또는 네트워크 오류
+            if (fetchError.message && (
+                fetchError.message.includes('Failed to fetch') ||
+                fetchError.message.includes('ERR_NAME_NOT_RESOLVED') ||
+                fetchError.message.includes('ERR_INTERNET_DISCONNECTED')
+            )) {
+                const errorMsg = '인터넷 연결을 확인할 수 없습니다.\n\n' +
+                    '확인 사항:\n' +
+                    '1. 인터넷 연결 상태 확인\n' +
+                    '2. 방화벽/프록시 설정 확인\n' +
+                    '3. DNS 서버 설정 확인\n' +
+                    '4. Supabase 서비스 상태 확인';
+                showNotification(errorMsg);
+                throw new Error(errorMsg);
+            }
+            throw fetchError;
+        }
+        
+        if(error){
+            console.error('세션 생성 DB 오류:', error);
+            console.error('DB 오류 코드:', error.code);
+            console.error('DB 오류 메시지:', error.message);
+            console.error('DB 오류 상세:', error.details);
+            throw error;
+        }
+        
+        if(!data){
+            console.error('세션이 생성되지 않았습니다 (data가 null)');
+            showNotification('세션 생성에 실패했습니다: 데이터가 반환되지 않았습니다');
+            return null;
+        }
+        
+        console.log('Session created successfully:', data);
+        console.log('Session ID:', data.id);
+        console.log('Session Code:', data.session_code);
+        
+        // 생성된 세션이 실제로 DB에 있는지 확인
+        const{data:verifyData,error:verifyError}=await supabaseClient
+            .from('live_sessions')
+            .select('*')
+            .eq('id', data.id)
+            .single();
+        
+        if(verifyError || !verifyData){
+            console.error('세션 검증 실패:', verifyError);
+            showNotification('세션이 생성되었지만 검증에 실패했습니다');
+            return null;
+        }
+        
+        console.log('세션 검증 성공:', verifyData);
+        
+        currentSessionId=data.id;
+        subscribeToSessionJoin();
+        subscribeToExperiencerChoices();
+        
+        showNotification('세션이 생성되었습니다. 코드: ' + sessionCode);
+        
+        return data.id;
+    }catch(e){
+        console.error('createLiveSession error:', e);
+        console.error('Error details:', JSON.stringify(e, null, 2));
+        showNotification('세션 생성에 실패했습니다: ' + (e.message || '알 수 없는 오류'));
+        return null;
+    }
+}
 function subscribeToSessionJoin(){if(!supabaseClient||!currentSessionId){console.log('구독 실패: supabaseClient 또는 currentSessionId 없음',{supabaseClient:!!supabaseClient,currentSessionId});return}console.log('구독 시작, 세션 ID:',currentSessionId);const channel=supabaseClient.channel('session-join-'+currentSessionId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_sessions',filter:`id=eq.${currentSessionId}`},(payload)=>{console.log('이벤트 수신:',payload);if(payload.new.experiencer_id){console.log('체험자 참여 감지!',payload.new.experiencer_id);showNotification('체험자가 참여했습니다!');const sessionSetupEl=document.getElementById('sessionSetup');if(sessionSetupEl){sessionSetupEl.classList.remove('active');sessionSetupEl.style.display='none'}setTimeout(()=>startLiveSession(),500)}}).subscribe((status)=>{console.log('구독 상태:',status);if(status==='SUBSCRIBED'){console.log('구독 성공, 폴링 시작');checkExperiencerJoin()}});window.sessionJoinChannel=channel;console.log('구독 채널 생성 완료:',channel);checkExperiencerJoin()}
 async function checkExperiencerJoin(){if(!supabaseClient||!currentSessionId||currentRole!=='A')return;if(window.experiencerCheckInterval){clearInterval(window.experiencerCheckInterval)}window.experiencerCheckInterval=setInterval(async()=>{try{const{data:session,error}=await supabaseClient.from('live_sessions').select('experiencer_id').eq('id',currentSessionId).single();if(error){console.error('세션 조회 오류:',error);return}if(session&&session.experiencer_id){console.log('폴링으로 체험자 참여 감지!',session.experiencer_id);clearInterval(window.experiencerCheckInterval);window.experiencerCheckInterval=null;showNotification('체험자가 참여했습니다!');const sessionSetupEl=document.getElementById('sessionSetup');if(sessionSetupEl){sessionSetupEl.classList.remove('active');sessionSetupEl.style.display='none'}setTimeout(()=>startLiveSession(),500)}}catch(e){console.error('checkExperiencerJoin error:',e)}},2000);setTimeout(()=>{if(window.experiencerCheckInterval){clearInterval(window.experiencerCheckInterval);window.experiencerCheckInterval=null;console.log('폴링 종료 (30초 경과)')}},30000)}
 function subscribeToLiveScenes(){
@@ -114,7 +259,11 @@ function subscribeToExperiencerChoices(){supabaseClient = getSupabaseClient(); i
 function onExperiencerChoiceReceived(choice){console.log('체험자 감정 도착 (choices 테이블):',choice);console.log('emotion_vector:',choice.emotion_vector);if(!choice||!choice.emotion_vector){console.error('choice 또는 emotion_vector가 없습니다');return}const emotionVector=choice.emotion_vector;console.log('화자 화면에 체험자 감정 반영 시작:',emotionVector);window.experiencerEmotionVector=emotionVector;const experiencerWave=computeWaveFromEmotion({base:emotionVector});window.currentExperiencerWave=experiencerWave;updateAlignmentWave();if(window.narratorEmotionVector){const similarity=cosineSimilarity(window.narratorEmotionVector,emotionVector);const alignment=Math.max(0,Math.min(1,similarity));currentAlignment=alignment;updateLiveAlignment(0);console.log('정렬도 계산 완료 (choices):',alignment)}showNotification('체험자가 감정을 입력했습니다 (choices)');console.log('체험자 감정 파동 업데이트 완료 (choices)')}
 function subscribeToScenes(){supabaseClient = getSupabaseClient(); if(!supabaseClient){console.error('subscribeToScenes: supabaseClient 없음');return}if(!currentSessionId){console.error('subscribeToScenes: currentSessionId 없음');return}console.log('장면 구독 시작, 세션 ID:',currentSessionId);const channel=supabaseClient.channel('scenes-'+currentSessionId).on('postgres_changes',{event:'INSERT',schema:'public',table:'scenes',filter:`live_session_id=eq.${currentSessionId}`},(payload)=>{console.log('새 장면 수신 (scenes 테이블):',payload);console.log('payload.new:',payload.new);if(payload.new){displaySceneForExperiencer(payload.new)}else{console.error('payload.new가 없습니다')}}).subscribe((status)=>{if(status==='SUBSCRIBED'){console.log('scenes 테이블 구독 성공!')}else if(status==='CHANNEL_ERROR'){console.log('scenes 테이블 구독 실패 (무시됨)')}});window.scenesChannel=channel;console.log('scenes 채널 생성 완료:',channel)}
 function displaySceneForExperiencer(scene){console.log('displaySceneForExperiencer 호출:',scene);if(!scene){console.error('장면 객체가 없습니다');return}if(!scene.text){console.error('장면 텍스트가 없습니다. scene:',JSON.stringify(scene));return}console.log('체험자 화면에 장면 표시 시작:',scene.text);const expSceneText=document.getElementById('expSceneText');if(expSceneText){expSceneText.textContent=scene.text;console.log('장면 텍스트 업데이트 완료');switchExpGeneratedTab('scene');expCurrentPhase='interpret';window.currentSceneId=scene.id||null;const expChatMessages=document.getElementById('expChatMessages');if(expChatMessages){expChatMessages.style.display='block';expChatMessages.innerHTML=''}const emotionCueMsg=window.lastSceneData?.emotionCue||'이 장면에서 어떤 감정이 느껴져?';addExpChatMessage('ai','화자의 기억이 도착했어.');addExpChatMessage('ai',emotionCueMsg);const expTextInput=document.getElementById('expTextInput');if(expTextInput){expTextInput.value='';expTextInput.focus();expTextInput.placeholder='감정을 입력하세요...'}showNotification('새 장면이 도착했습니다')}else{console.error('expSceneText 요소를 찾을 수 없습니다')}}
-function cosineSimilarity(vec1,vec2){if(!vec1||!vec2)return 0;const keys=['fear','sadness','anger','joy','longing','guilt'];let dotProduct=0;let mag1=0;let mag2=0;keys.forEach(key=>{const v1=vec1[key]||0;const v2=vec2[key]||0;dotProduct+=v1*v2;mag1+=v1*v1;mag2+=v2*v2});mag1=Math.sqrt(mag1);mag2=Math.sqrt(mag2);if(mag1===0||mag2===0)return 0;return dotProduct/(mag1*mag2)}
+function cosineSimilarity(vec1,vec2){if(!vec1||!vec2)return 0;const keys=['fear','sadness','anger','joy','longing','guilt','isolation','numbness','shame','moral_pain'];let dotProduct=0;let mag1=0;let mag2=0;keys.forEach(key=>{const v1=vec1[key]||0;const v2=vec2[key]||0;dotProduct+=v1*v2;mag1+=v1*v1;mag2+=v2*v2});mag1=Math.sqrt(mag1);mag2=Math.sqrt(mag2);if(mag1===0||mag2===0)return 0;return dotProduct/(mag1*mag2)}
+function updateAlignmentDisplay(){const alignmentValueEl=document.getElementById('alignmentValue');const alignmentFillEl=document.getElementById('alignmentFill');if(alignmentValueEl){alignmentValueEl.textContent=currentAlignment.toFixed(2)}if(alignmentFillEl){alignmentFillEl.style.width=(currentAlignment*100)+'%'}}
+function renderArchiveEmotionWave(emotionVector){if(!emotionVector)return;const canvas=document.getElementById('waveCanvas');if(!canvas)return;const ctx=canvas.getContext('2d');const width=canvas.width/2;const height=canvas.height/2;const centerY=height/2;ctx.fillStyle='rgba(18,18,26,0.1)';ctx.fillRect(0,0,width,height);const waveData=computeWaveFromEmotion({base:emotionVector,intensity:0.5,confidence:0.8});ctx.beginPath();ctx.strokeStyle=waveData.color||'rgba(196,168,130,0.6)';ctx.lineWidth=1.5;let time=Date.now()*0.001;for(let x=0;x<width;x++){const y=centerY+Math.sin(x*waveData.frequency+time)*waveData.amplitude*20;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();console.log('Archive emotion wave rendered:',waveData)}
+async function saveArchiveEmotionToPlays(userEmotionVector,userReason,scene,currentData,sceneAlignment){try{supabaseClient = getSupabaseClient(); if(!supabaseClient){console.warn('Supabase 클라이언트가 없어 plays 테이블에 저장하지 않습니다');return}const memoryId=currentData.id||(allMemoriesData[currentMemory]&&allMemoriesData[currentMemory].id);if(!memoryId){console.warn('memory_id를 찾을 수 없어 plays 테이블에 저장하지 않습니다');return}const sceneId=scene.id;if(!sceneId){console.warn('scene_id를 찾을 수 없어 plays 테이블에 저장하지 않습니다');return}const sceneText=scene.text||'';const voidLevel=scene.voidInfo?.voidLevel||'low';const waveData=computeArchiveWaveData(userEmotionVector,sceneText.length,voidLevel);const insertData={memory_id:memoryId,scene_id:sceneId,user_emotion:userEmotionVector,user_reason:userReason,wave_data:waveData,layer_id:0,alignment:sceneAlignment!==undefined?sceneAlignment:null};console.log('Archive plays 저장 시도:',insertData);const{data,error}=await supabaseClient.from('plays').insert(insertData).select().single();if(error){console.error('Archive plays 저장 실패:',error);return}console.log('Archive plays 저장 성공:',data)}catch(e){console.error('saveArchiveEmotionToPlays error:',e)}}
+function computeArchiveWaveData(emotionVector,sceneTextLength,voidLevel){const totalEmotion=Object.values(emotionVector).reduce((sum,val)=>sum+(val||0),0);const normalizedEmotion=totalEmotion>0?Object.keys(emotionVector).reduce((acc,key)=>{acc[key]=(emotionVector[key]||0)/totalEmotion;return acc},{}):emotionVector;const intensity=Math.min(1,Math.max(0.3,totalEmotion/8));const wavePoints=[];const width=Math.max(100,Math.min(500,sceneTextLength*10));for(let i=0;i<width;i++){const x=i/width;const baseY=0.5;const amplitude=voidLevel==='high'?0.15:0.25;const frequency=0.02+intensity*0.01;const y=baseY+Math.sin(x*Math.PI*2*frequency*10)*amplitude;wavePoints.push({x,y})}const dominantEmotion=Object.keys(normalizedEmotion).reduce((a,b)=>normalizedEmotion[a]>normalizedEmotion[b]?a:b,'fear');const emotionColors={'fear':'rgba(74,144,217,0.8)','sadness':'rgba(90,122,154,0.8)','guilt':'rgba(139,115,85,0.8)','anger':'rgba(217,74,74,0.8)','longing':'rgba(196,168,130,0.8)','isolation':'rgba(74,74,90,0.8)','numbness':'rgba(106,106,106,0.8)','shame':'rgba(155,89,182,0.8)','moral_pain':'rgba(155,89,182,0.8)'};return{wavePoints,color:emotionColors[dominantEmotion]||'rgba(196,168,130,0.8)',intensity,voidLevel}}
 async function checkAlignment(){
     if(!supabaseClient||!currentSessionId)return;
     if(window.narratorEmotionVector&&window.experiencerEmotionVector){
@@ -131,16 +280,39 @@ async function checkAlignment(){
 }
 function updateAlignmentWave(){const canvas=document.getElementById('alignmentWaveCanvas');if(!canvas)return;const ctx=canvas.getContext('2d');if(!window.narratorEmotionVector||!window.experiencerEmotionVector)return;const narratorWave=computeWaveFromEmotion({base:window.narratorEmotionVector});const experiencerWave=computeWaveFromEmotion({base:window.experiencerEmotionVector});currentNarratorWave=narratorWave;window.currentExperiencerWave=experiencerWave;console.log('파동 업데이트:',{narrator:narratorWave,experiencer:experiencerWave})}
 async function joinLiveSession(){
-    supabaseClient = await getSupabaseClient();
+    console.log('=== joinLiveSession 시작 ===');
+    
+    // Supabase 클라이언트 초기화 대기
+    let retryCount = 0;
+    const maxRetries = 20; // 최대 10초 대기 (20 * 500ms)
+    
+    while(retryCount < maxRetries) {
+        supabaseClient = getSupabaseClient();
+        if(supabaseClient) {
+            console.log('Supabase 클라이언트 초기화 완료');
+            break;
+        }
+        console.log(`Supabase 클라이언트 대기 중... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retryCount++;
+    }
+    
     if(!supabaseClient){
-        showNotification('Supabase 클라이언트가 초기화되지 않았습니다');
+        console.error('Supabase 클라이언트가 초기화되지 않음 (최대 대기 시간 초과)');
+        console.error('window.supabase 존재 여부:', typeof window.supabase !== 'undefined');
+        showNotification('Supabase 연결에 실패했습니다. 네트워크 연결을 확인해주세요.');
         return;
     }
+    
     const code=document.getElementById('sessionCodeInput').value.trim().toUpperCase();
+    console.log('입력된 코드:', code);
+    
     if(!code||code.length!==5){
-        showNotification('올바른 코드를 입력하세요');
+        console.warn('코드 형식 오류:', code);
+        showNotification('올바른 코드를 입력하세요 (5자리)');
         return;
     }
+    
     let userId;
     if(currentUser){
         userId=currentUser.id;
@@ -150,51 +322,111 @@ async function joinLiveSession(){
         }
         userId=window.anonymousUserId;
     }
+    
+    console.log('userId:', userId);
+    
     try{
-        // is() 대신 직접 필터링
-        const{data:sessions,error}=await supabaseClient
-            .from('live_sessions')
-            .select('*')
-            .eq('session_code',code)
-            .limit(10);
+        console.log('세션 검색 시작, 코드:', code);
+        console.log('Supabase URL:', supabaseClient.supabaseUrl);
+        
+        let sessions, error;
+        try {
+            const result = await supabaseClient
+                .from('live_sessions')
+                .select('*')
+                .eq('session_code',code)
+                .limit(10);
+            sessions = result.data;
+            error = result.error;
+        } catch (fetchError) {
+            console.error('Fetch 오류 발생:', fetchError);
+            console.error('Fetch 오류 타입:', fetchError.constructor.name);
+            console.error('Fetch 오류 메시지:', fetchError.message);
+            
+            // DNS 해석 실패 또는 네트워크 오류
+            if (fetchError.message && (
+                fetchError.message.includes('Failed to fetch') ||
+                fetchError.message.includes('ERR_NAME_NOT_RESOLVED') ||
+                fetchError.message.includes('ERR_INTERNET_DISCONNECTED')
+            )) {
+                const errorMsg = '인터넷 연결을 확인할 수 없습니다.\n\n' +
+                    '확인 사항:\n' +
+                    '1. 인터넷 연결 상태 확인\n' +
+                    '2. 방화벽/프록시 설정 확인\n' +
+                    '3. DNS 서버 설정 확인\n' +
+                    '4. Supabase 서비스 상태 확인';
+                showNotification(errorMsg);
+                return;
+            }
+            throw fetchError;
+        }
         
         if(error){
-            console.error('joinLiveSession query error:',error);
+            console.error('joinLiveSession query error:', error);
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            console.error('Error details:', error.details);
+            showNotification('세션을 찾을 수 없습니다. 코드를 확인해주세요. (오류: ' + (error.message || '알 수 없는 오류') + ')');
+            return;
+        }
+        
+        console.log('검색된 세션들:', sessions);
+        console.log('검색된 세션 수:', sessions?.length || 0);
+        
+        if(!sessions || sessions.length === 0){
+            console.warn('세션을 찾을 수 없음 - 코드:', code);
             showNotification('세션을 찾을 수 없습니다. 코드를 확인해주세요.');
             return;
         }
         
         // 클라이언트 측에서 필터링
-        const session=sessions?.find(s=>
+        const session=sessions.find(s=>
             s.session_code===code&&
             !s.experiencer_id&&
             !s.ended_at
         );
         
+        console.log('필터링된 세션:', session);
+        
         if(!session){
-            showNotification('세션을 찾을 수 없습니다. 코드를 확인해주세요.');
+            console.warn('접속 가능한 세션 없음');
+            console.log('세션 상태:', sessions.map(s => ({
+                code: s.session_code,
+                has_experiencer: !!s.experiencer_id,
+                ended: !!s.ended_at
+            })));
+            showNotification('접속 가능한 세션이 없습니다. 이미 참여자가 있거나 종료된 세션일 수 있습니다.');
             return;
         }
         
-        const{error:updateError}=await supabaseClient
+        console.log('세션 참여 시도, 세션 ID:', session.id);
+        
+        const{data:updateData,error:updateError}=await supabaseClient
             .from('live_sessions')
             .update({experiencer_id:userId})
-            .eq('id',session.id);
+            .eq('id',session.id)
+            .select()
+            .single();
         
         if(updateError){
-            console.error('참여 실패:',updateError);
-            showNotification('세션 참여에 실패했습니다');
+            console.error('참여 실패:', updateError);
+            console.error('Error details:', JSON.stringify(updateError, null, 2));
+            showNotification('세션 참여에 실패했습니다: ' + updateError.message);
             return;
         }
+        
+        console.log('세션 참여 성공:', updateData);
         
         sessionCode=code;
         currentSessionId=session.id;
-        showNotification('세션에 접속했습니다');
+        
+        showNotification('세션에 접속했습니다!');
         subscribeToNarratorEmotion();
         setTimeout(()=>startLiveSession(),500);
     }catch(e){
-        console.error('joinLiveSession error:',e);
-        showNotification('세션 참여 중 오류가 발생했습니다');
+        console.error('joinLiveSession error:', e);
+        console.error('Error stack:', e.stack);
+        showNotification('세션 참여 중 오류가 발생했습니다: ' + (e.message || '알 수 없는 오류'));
     }
 }
 function subscribeToNarratorEmotion(){if(!supabaseClient||!currentSessionId){console.error('subscribeToNarratorEmotion: supabaseClient 또는 currentSessionId 없음');return}console.log('화자 감정 구독 시작, 세션 ID:',currentSessionId);const channel=supabaseClient.channel('narrator-scenes-'+currentSessionId).on('postgres_changes',{event:'INSERT',schema:'public',table:'scenes',filter:`live_session_id=eq.${currentSessionId}`},(payload)=>{console.log('화자 장면/감정 수신:',payload.new);if(payload.new&&payload.new.emotion_vector){window.narratorEmotionVector=payload.new.emotion_vector;console.log('화자 감정 벡터 저장:',window.narratorEmotionVector);updateExperiencerAlignment()}}).subscribe((status)=>{console.log('화자 감정 구독 상태:',status);if(status==='SUBSCRIBED'){console.log('화자 감정 구독 성공!')}else if(status==='CHANNEL_ERROR'){console.error('화자 감정 구독 실패')}});window.narratorEmotionChannel=channel;console.log('화자 감정 채널 생성 완료:',channel)}
@@ -642,7 +874,7 @@ function startVoiceWaveLiveAnimation(){
     }
 }
 function stopVoiceWaveLiveAnimation(){if(voiceWaveLiveAnimationId){cancelAnimationFrame(voiceWaveLiveAnimationId);voiceWaveLiveAnimationId=null}}
-let alignmentWaveAnimationId=null;let voiceWaveLiveAnimationId=null;
+let alignmentWaveAnimationId=null;let voiceWaveLiveAnimationId=null;let comparisonWaveAnimationId=null;let comparisonWaveTime=0;
 function selectMemory(index){try{currentMemory=index;currentScene=0;userChoices=[];userReasons=[];currentAlignment=0;updateUserStats('memory',index);const selectedMemory=allMemoriesData[index]||allMemoriesData[0];if(!selectedMemory){showNotification('기억을 불러올 수 없습니다');return}window.currentStoryData=selectedMemory;const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl&&!archiveContainerEl.classList.contains('active')){archiveContainerEl.classList.add('active')}const memoryListEl=document.getElementById('memoryList');if(memoryListEl)memoryListEl.style.display='none';const archiveControlsEl=document.getElementById('archiveControls');if(archiveControlsEl)archiveControlsEl.style.display='none';const archiveHeaderEl=document.querySelector('.archive-header');if(archiveHeaderEl)archiveHeaderEl.style.display='none';const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.add('active');sceneViewerEl.style.cssText='display:block !important;opacity:1 !important';setTimeout(()=>{initProgressDots();renderScene();startWaveAnimation();setTimeout(()=>showNpcDialogue("이 기억의 주인은 아래층에, 다른 사람들의 해석은 위층에 쌓여 있어. 천천히 그 지층을 따라가 봐.",4000),100)},100)}else{showNotification('장면 뷰어를 찾을 수 없습니다')}}catch(e){console.error('selectMemory error:',e);console.error('Error details:',{index,memoriesDataLength:memoriesData.length,selectedMemory:memoriesData[index]});showNotification('기억을 불러오는 중 오류가 발생했습니다')}}
 function backToList(){document.getElementById('memoryList').style.display='grid';const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}const archiveControlsEl=document.getElementById('archiveControls');if(archiveControlsEl)archiveControlsEl.style.display='flex';const archiveHeaderEl=document.querySelector('.archive-header');if(archiveHeaderEl)archiveHeaderEl.style.display='block';stopWaveAnimation()}
 function initProgressDots(){const currentData=window.currentStoryData||storyData;const dotsContainer=document.getElementById('progressDots');if(!dotsContainer)return;dotsContainer.innerHTML='';if(!currentData||!currentData.scenes)return;for(let i=0;i<currentData.scenes.length;i++){const dot=document.createElement('div');dot.className='progress-dot'+(i===0?' active':'');dot.onclick=function(){goToScene(i)};dotsContainer.appendChild(dot)}}
@@ -653,7 +885,7 @@ function renderChoices(choices){const container=document.getElementById('choices
 function makeChoice(choiceIndex){try{userChoices.push(choiceIndex);const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const sceneType=scene.sceneType||'normal';if(sceneType==='branch'||sceneType==='ending'){const questionEl=document.getElementById('emotionQuestion');if(questionEl)questionEl.textContent=currentScene===0?"왜 그렇게 했어?":"왜 그런 선택을 했어?";const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.add('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.focus()}else{proceedToNextScene()}}catch(e){console.error('makeChoice error:',e);showNotification('오류가 발생했습니다')}}
 function proceedToNextScene(){try{const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}if(currentScene<currentData.scenes.length-1){currentScene++;renderScene()}else{showEndScreen()}}catch(e){console.error('proceedToNextScene error:',e);showNotification('오류가 발생했습니다')}}
 function proceedToNextSceneLive(){try{const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}if(currentScene<currentData.scenes.length-1){currentScene++;simulateNarratorInput()}else{showEndScreen()}}catch(e){console.error('proceedToNextSceneLive error:',e);showNotification('오류가 발생했습니다')}}
-function submitEmotion(){try{const reason=document.getElementById('emotionInputField').value||"말하고 싶지 않아";userReasons.push(reason);updateUserStats('interpretation',1);const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.remove('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.value='';const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const choiceMatch=userChoices[currentScene]===scene.originalChoice?0.3:0;const randomSimilarity=0.4+Math.random()*0.3;currentAlignment=Math.min(1,currentAlignment+choiceMatch*0.5+randomSimilarity*0.3);if(currentMode==='live'){updateLiveAlignment(choiceMatch*0.5+randomSimilarity*0.3);liveSceneNum++;const sceneNumEl=document.getElementById('liveSceneNum');if(sceneNumEl)sceneNumEl.textContent=liveSceneNum}if(userChoices[currentScene]===scene.originalChoice)showNpcDialogue("같은 선택... 하지만 이유도 같을까?",3000);else showNpcDialogue("다른 길을 걸었네. 그것도 하나의 해석이야.",3000);setTimeout(()=>{if(currentScene<currentData.scenes.length-1){currentScene++;if(currentMode==='archive')renderScene();else simulateNarratorInput()}else{showEndScreen()}},1500)}catch(e){console.error('submitEmotion error:',e);showNotification('감정을 제출하는 중 오류가 발생했습니다')}}
+async function submitEmotion(){try{const reason=document.getElementById('emotionInputField').value||"말하고 싶지 않아";userReasons.push(reason);updateUserStats('interpretation',1);const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.remove('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.value='';const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];let userEmotionVector=null;let sceneAlignment=null;if(currentMode==='archive'&&(scene.sceneType==='branch'||scene.sceneType==='ending')){showNotification('감정을 분석하고 있습니다...');try{const emotionResult=await analyzeEmotionWithVector('',reason);console.log('Archive emotion analysis result:',emotionResult);if(emotionResult&&emotionResult.analysis&&emotionResult.analysis.base){userEmotionVector=emotionResult.analysis.base;if(!window.archiveUserEmotions){window.archiveUserEmotions=[]}window.archiveUserEmotions[currentScene]={emotion:userEmotionVector,reason:reason,sceneId:scene.id||currentScene};if(scene.originalEmotion&&typeof scene.originalEmotion==='object'){sceneAlignment=cosineSimilarity(userEmotionVector,scene.originalEmotion);console.log('Archive scene alignment:',sceneAlignment);if(!window.archiveSceneAlignments){window.archiveSceneAlignments=[]}window.archiveSceneAlignments[currentScene]=sceneAlignment;updateAlignmentDisplay();renderArchiveEmotionWave(userEmotionVector);showNotification(`장면 정렬도: ${(sceneAlignment*100).toFixed(0)}%`)}else{console.warn('원본 감정이 없어 정렬도를 계산할 수 없습니다');sceneAlignment=null}await saveArchiveEmotionToPlays(userEmotionVector,reason,scene,currentData,sceneAlignment)}else{console.warn('감정 분석 결과가 올바르지 않습니다');if(userEmotionVector){await saveArchiveEmotionToPlays(userEmotionVector,reason,scene,currentData,null)}}}catch(e){console.error('Archive emotion analysis error:',e);showNotification('감정 분석 중 오류가 발생했습니다');if(userEmotionVector){await saveArchiveEmotionToPlays(userEmotionVector,reason,scene,currentData,null)}}}if(userChoices[currentScene]===scene.originalChoice)showNpcDialogue("같은 선택... 하지만 이유도 같을까?",3000);else showNpcDialogue("다른 길을 걸었네. 그것도 하나의 해석이야.",3000);setTimeout(async()=>{if(currentScene<currentData.scenes.length-1){currentScene++;if(currentMode==='archive')renderScene();else simulateNarratorInput()}else{if(currentMode==='archive'){const alignmentResult=await calculateAverageAlignment();showEndScreen(alignmentResult)}else{showEndScreen()}}},1500)}catch(e){console.error('submitEmotion error:',e);showNotification('감정을 제출하는 중 오류가 발생했습니다')}}
 function updateStrata(){const originalPercent=70-(currentScene*10),interpretPercent=30+(currentScene*10);document.getElementById('strataOriginal').style.height=originalPercent+'%';document.getElementById('strataInterpretation').style.height=interpretPercent+'%';document.getElementById('strataInterpretation').style.bottom=originalPercent+'%'}
 function updateEmotionDist(dist){document.getElementById('emotionFear').style.width=(dist.fear||0)+'%';document.getElementById('emotionFearVal').textContent=(dist.fear||0)+'%';document.getElementById('emotionSadness').style.width=(dist.sadness||0)+'%';document.getElementById('emotionSadnessVal').textContent=(dist.sadness||0)+'%';document.getElementById('emotionGuilt').style.width=(dist.guilt||0)+'%';document.getElementById('emotionGuiltVal').textContent=(dist.guilt||0)+'%';document.getElementById('emotionAnger').style.width=(dist.anger||0)+'%';document.getElementById('emotionAngerVal').textContent=(dist.anger||0)+'%';document.getElementById('emotionLonging').style.width=(dist.longing||0)+'%';document.getElementById('emotionLongingVal').textContent=(dist.longing||0)+'%';document.getElementById('emotionIsolation').style.width=(dist.isolation||0)+'%';document.getElementById('emotionIsolationVal').textContent=(dist.isolation||0)+'%';document.getElementById('emotionNumbness').style.width=(dist.numbness||0)+'%';document.getElementById('emotionNumbnessVal').textContent=(dist.numbness||0)+'%';document.getElementById('emotionMoralPain').style.width=(dist.moralPain||0)+'%';document.getElementById('emotionMoralPainVal').textContent=(dist.moralPain||0)+'%'}
 function startWaveAnimation(){const canvas=document.getElementById('waveCanvas');if(!canvas)return;const ctx=canvas.getContext('2d');canvas.width=canvas.offsetWidth*2;canvas.height=canvas.offsetHeight*2;ctx.scale(2,2);let time=0;function animate(){ctx.fillStyle='rgba(18,18,26,0.1)';ctx.fillRect(0,0,canvas.width/2,canvas.height/2);const width=canvas.width/2,height=canvas.height/2,centerY=height/2;ctx.beginPath();ctx.strokeStyle='rgba(196,168,130,0.6)';ctx.lineWidth=1.5;for(let x=0;x<width;x++){const y=centerY+Math.sin(x*0.02+time*0.05)*15+Math.sin(x*0.01+time*0.03)*10;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();ctx.beginPath();ctx.strokeStyle='rgba(123,143,168,0.6)';ctx.lineWidth=1.5;const offset=(1-currentAlignment)*30;for(let x=0;x<width;x++){const y=centerY+Math.sin(x*0.02+time*0.05+offset)*15+Math.sin(x*0.01+time*0.03+offset*0.5)*10;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();time++;waveAnimationId=requestAnimationFrame(animate)}animate()}
@@ -661,7 +893,7 @@ function startLiveWaveAnimation(){const canvas=document.getElementById('liveWave
 function stopWaveAnimation(){if(waveAnimationId){cancelAnimationFrame(waveAnimationId);waveAnimationId=null}}
 function stopLiveWaveAnimation(){if(liveWaveAnimationId){cancelAnimationFrame(liveWaveAnimationId);liveWaveAnimationId=null}}
 function stopAllAnimations(){stopWaveAnimation();stopLiveWaveAnimation();stopAlignmentWaveAnimation();stopVoiceWaveLiveAnimation();stopLiveVoiceInput()}
-function showEndScreen(){stopAllAnimations();const liveContainerEl=document.getElementById('liveContainer');if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}const endScreenEl=document.getElementById('endScreen');if(endScreenEl){endScreenEl.classList.add('active');endScreenEl.style.cssText='display:flex !important'}const currentData=window.currentStoryData||storyData;const lastScene=currentData.scenes[currentData.scenes.length-1];const lastChoiceIndex=userChoices.length>0?userChoices[userChoices.length-1]:0;const lastReason=userReasons.length>0?userReasons[userReasons.length-1]:"—";document.getElementById('yourChoice').textContent=lastScene.choices[lastChoiceIndex]?lastScene.choices[lastChoiceIndex].text:"—";document.getElementById('yourReason').textContent='"'+lastReason+'"';document.getElementById('theirChoice').textContent=lastScene.choices[lastScene.originalChoice].text;document.getElementById('theirReason').textContent='"'+lastScene.originalReason+'"';document.getElementById('finalAlignment').textContent='감정 구조 정렬도: '+currentAlignment.toFixed(2);if(currentAlignment>=0.8){document.getElementById('trueEndingBadge').classList.add('active');document.getElementById('endTitle').textContent='음각에 닿다';document.getElementById('finalMessage').innerHTML='<strong>트루엔딩에 도달했습니다.</strong><br><br>당신은 그 사람의 감정 구조에 거의 겹쳐졌습니다.<br>이 일치는 원본 지층에 깊게 새겨질 거예요.'}else{document.getElementById('trueEndingBadge').classList.remove('active');document.getElementById('endTitle').textContent='기억의 끝에서';document.getElementById('finalMessage').innerHTML='당신은 누군가의 기억 속을 걸었습니다.<br>같은 행동, 다른 이유. 다른 행동, 같은 정서.<br>완전한 이해는 불가능하지만, 당신의 해석은 이 기억의 윗층에 남습니다.'}startEndStrataAnimation();setTimeout(()=>{if(currentMode==='live'){showNpcDialogue("이제 이 기억은 Live에서 Archive로 넘겨질 거야. 당신의 해석도 함께.",6000)}else{showNpcDialogue("이 기억의 지층 어딘가에, 방금 너의 선택과 이유가 얇은 층으로 남았어.",6000)}},2000);const footer=document.querySelector('.footer');if(footer)footer.classList.add('visible')}
+async function showEndScreen(alignmentResult){stopAllAnimations();const liveContainerEl=document.getElementById('liveContainer');if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}if(currentMode==='archive'){if(!alignmentResult){alignmentResult=await calculateAverageAlignment()}window.archiveAlignmentResult=alignmentResult;showComparisonView();return}let finalAlignment=currentAlignment;let isTrueEnding=false;if(alignmentResult){finalAlignment=alignmentResult.averageAlignment;isTrueEnding=alignmentResult.isTrueEnding}else if(currentMode==='archive'){const calculated=await calculateAverageAlignment();finalAlignment=calculated.averageAlignment;isTrueEnding=calculated.isTrueEnding}const endScreenEl=document.getElementById('endScreen');if(endScreenEl){endScreenEl.classList.add('active');endScreenEl.style.cssText='display:flex !important'}const currentData=window.currentStoryData||storyData;const lastScene=currentData.scenes[currentData.scenes.length-1];const lastChoiceIndex=userChoices.length>0?userChoices[userChoices.length-1]:0;const lastReason=userReasons.length>0?userReasons[userReasons.length-1]:"—";document.getElementById('yourChoice').textContent=lastScene.choices[lastChoiceIndex]?lastScene.choices[lastChoiceIndex].text:"—";document.getElementById('yourReason').textContent='"'+lastReason+'"';document.getElementById('theirChoice').textContent=lastScene.choices[lastScene.originalChoice].text;document.getElementById('theirReason').textContent='"'+lastScene.originalReason+'"';document.getElementById('finalAlignment').textContent='감정 구조 정렬도: '+finalAlignment.toFixed(2);if(isTrueEnding){document.getElementById('trueEndingBadge').classList.add('active');document.getElementById('endTitle').textContent='음각에 닿다';document.getElementById('finalMessage').innerHTML='<strong>트루엔딩에 도달했습니다.</strong><br><br>당신은 그 사람의 감정 구조에 거의 겹쳐졌습니다.<br>이 일치는 원본 지층에 깊게 새겨질 거예요.'}else{document.getElementById('trueEndingBadge').classList.remove('active');document.getElementById('endTitle').textContent='기억의 끝에서';document.getElementById('finalMessage').innerHTML='당신은 누군가의 기억 속을 걸었습니다.<br>같은 행동, 다른 이유. 다른 행동, 같은 정서.<br>완전한 이해는 불가능하지만, 당신의 해석은 이 기억의 윗층에 남습니다.'}startEndStrataAnimation();setTimeout(()=>{if(currentMode==='live'){showNpcDialogue("이제 이 기억은 Live에서 Archive로 넘겨질 거야. 당신의 해석도 함께.",6000)}else{showNpcDialogue("이 기억의 지층 어딘가에, 방금 너의 선택과 이유가 얇은 층으로 남았어.",6000)}},2000);const footer=document.querySelector('.footer');if(footer)footer.classList.add('visible')}
 function startEndStrataAnimation(){const container=document.getElementById('endStrataContainer');const messageEl=document.getElementById('endStrataMessage');const contentEl=document.getElementById('endContent');const animationEl=document.getElementById('endStrataAnimation');if(!container||!messageEl||!contentEl||!animationEl)return;container.innerHTML='';const totalHeight=400;const layerHeight=totalHeight/6;const previousLayers=[{emotion:'fear',height:layerHeight},{emotion:'anger',height:layerHeight},{emotion:'shame',height:layerHeight},{emotion:'joy',height:layerHeight}];let currentBottom=totalHeight;const originalLayer=document.createElement('div');originalLayer.className='end-strata-layer end-strata-layer-original';originalLayer.style.height=layerHeight*2+'px';originalLayer.style.bottom=(currentBottom-layerHeight*2)+'px';container.appendChild(originalLayer);currentBottom-=layerHeight*2;previousLayers.forEach((layer,idx)=>{const layerEl=document.createElement('div');layerEl.className='end-strata-layer end-strata-layer-interpretation '+layer.emotion;layerEl.style.height=layer.height+'px';layerEl.style.bottom=(currentBottom-layer.height)+'px';layerEl.style.opacity='0';container.appendChild(layerEl);setTimeout(()=>{layerEl.style.opacity='1'},100*idx);currentBottom-=layer.height});const userEmotion=getUserDominantEmotion();const newLayer=document.createElement('div');newLayer.className='end-strata-layer end-strata-layer-new '+userEmotion;newLayer.style.height=layerHeight+'px';newLayer.style.bottom=totalHeight+'px';container.appendChild(newLayer);setTimeout(()=>{newLayer.style.transform='translateY(0)';newLayer.style.opacity='1';messageEl.classList.add('visible')},500);setTimeout(()=>{animationEl.style.transform='translate(-50%,-50%) scale(0.3)';animationEl.style.top='10%';animationEl.style.transition='all 1s ease-out';contentEl.style.opacity='1'},1500)}
 function getUserDominantEmotion(){const emotions=['fear','sadness','guilt','anger','longing','isolation','numbness','moralPain'];const lastScene=window.currentStoryData?.scenes?.[window.currentStoryData.scenes.length-1];if(lastScene&&lastScene.emotionDist){const dist=lastScene.emotionDist;let max=0,dominant='fear';if((dist.fear||0)>max){max=dist.fear;dominant='fear'}if((dist.sadness||0)>max){max=dist.sadness;dominant='sadness'}if((dist.guilt||0)>max){max=dist.guilt;dominant='guilt'}if((dist.anger||0)>max){max=dist.anger;dominant='anger'}if((dist.longing||0)>max){max=dist.longing;dominant='longing'}if((dist.isolation||0)>max){max=dist.isolation;dominant='isolation'}if((dist.numbness||0)>max){max=dist.numbness;dominant='numbness'}if((dist.moralPain||0)>max){max=dist.moralPain;dominant='moralPain'}return dominant}return emotions[Math.floor(Math.random()*emotions.length)]}
 function restart(){currentMode=null;currentRole=null;sessionCode=null;currentMemory=null;currentScene=0;userChoices=[];userReasons=[];currentAlignment=0;liveSceneNum=1;liveFragments=0;liveMatches=0;const endScreenEl=document.getElementById('endScreen');if(endScreenEl){endScreenEl.classList.remove('active');endScreenEl.style.display='none'}const liveContainerEl=document.getElementById('liveContainer');if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}const memoryListEl=document.getElementById('memoryList');if(memoryListEl)memoryListEl.style.display='grid';const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}const introScreen=document.getElementById('introScreen');if(introScreen){introScreen.classList.remove('hidden');introScreen.classList.add('visible');introScreen.style.cssText='display:flex !important;opacity:1 !important;visibility:visible !important;pointer-events:auto !important;z-index:2000 !important'}const narratorPanelEl=document.getElementById('narratorPanel');if(narratorPanelEl)narratorPanelEl.classList.remove('active');const experiencerPanelEl=document.getElementById('experiencerPanel');if(experiencerPanelEl)experiencerPanelEl.classList.remove('active');const interpretationTraceEl=document.getElementById('interpretationTrace');if(interpretationTraceEl)interpretationTraceEl.style.display='none';const liveSceneContentEl=document.getElementById('liveSceneContent');if(liveSceneContentEl)liveSceneContentEl.textContent='화자가 기억을 불러오고 있습니다...';const feelingInput=document.getElementById('experiencerFeelingInput');if(feelingInput)feelingInput.value='';const memoryTraceContent=document.getElementById('memoryTraceContent');if(memoryTraceContent)memoryTraceContent.textContent='—';const liveAlignmentValueEl=document.getElementById('liveAlignmentValue');if(liveAlignmentValueEl){liveAlignmentValueEl.textContent='0.00';liveAlignmentValueEl.classList.remove('high')}const liveAlignmentFillEl=document.getElementById('liveAlignmentFill');if(liveAlignmentFillEl)liveAlignmentFillEl.style.width='0%';const liveSceneNumEl=document.getElementById('liveSceneNum');if(liveSceneNumEl)liveSceneNumEl.textContent='1';const liveFragmentsEl=document.getElementById('liveFragments');if(liveFragmentsEl)liveFragmentsEl.textContent='0';const liveMatchesEl=document.getElementById('liveMatches');if(liveMatchesEl)liveMatchesEl.textContent='0';const footer=document.querySelector('.footer');if(footer)footer.classList.remove('visible')}
@@ -858,7 +1090,7 @@ function startOpeningSequence(){if(openingSkipped)return;const waveContainer=doc
 function skipOpening(){if(openingSkipped)return;openingSkipped=true;if(openingWaveAnimationId){cancelAnimationFrame(openingWaveAnimationId);openingWaveAnimationId=null}if(openingSound){fadeOutSound(openingSound,3000)}finishOpeningSequence()}
 function handleOpeningKeydown(e){if(!openingSkipped){e.preventDefault();skipOpening()}}
 function finishOpeningSequence(){const openingScreen=document.getElementById('openingScreen');const introScreen=document.getElementById('introScreen');if(openingScreen){openingScreen.removeEventListener('click',skipOpening);openingScreen.style.cssText='display:none !important;visibility:hidden !important;opacity:0 !important;pointer-events:none !important;z-index:-1 !important';openingScreen.classList.add('hidden')}document.removeEventListener('keydown',handleOpeningKeydown);if(introScreen){introScreen.style.cssText='display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;z-index:2000 !important';introScreen.classList.add('visible');introScreen.classList.remove('hidden')}playNpcIntro()}
-document.addEventListener('DOMContentLoaded',function(){openingSound=document.getElementById('openingSound');const waveContainer=document.getElementById('openingWaveContainer');if(waveContainer){waveContainer.classList.add('visible');const canvas=document.getElementById('openingWaveCanvas');if(canvas)startOpeningWaveAnimation(canvas)}});
+document.addEventListener('DOMContentLoaded',function(){openingSound=document.getElementById('openingSound');const openingScreen=document.getElementById('openingScreen');if(openingScreen){openingScreen.style.cssText='display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;z-index:3000 !important'}const waveContainer=document.getElementById('openingWaveContainer');if(waveContainer){waveContainer.classList.add('visible');const canvas=document.getElementById('openingWaveCanvas');if(canvas)startOpeningWaveAnimation(canvas)}const hint=document.getElementById('openingStartHint');if(hint){hint.style.opacity='1';hint.classList.add('visible')}});
 const openingScreenEl=document.getElementById('openingScreen');if(openingScreenEl){openingScreenEl.addEventListener('click',function(e){if(hasZoomedIn){skipToIntro();return}hasZoomedIn=true;const waveContainer=document.getElementById('openingWaveContainer');if(waveContainer){waveContainer.style.transform='scale(1)';waveContainer.style.opacity='1'}if(openingSound){setupLoopWithCrossfade(openingSound,0.6,2);fadeInSound(openingSound,0.6,4000)}const hint=document.getElementById('openingStartHint');if(hint)hint.style.opacity='0';setTimeout(()=>{if(!openingSequenceStarted){openingSequenceStarted=true;startOpeningSequence()}},800)})}document.addEventListener('keydown',handleOpeningKeydown);
 async function checkSession(){supabaseClient = getSupabaseClient(); if(!supabaseClient)return;const{data:{session}}=await supabaseClient.auth.getSession();if(session){isLoggedIn=true;currentUser={id:session.user.id,username:session.user.user_metadata?.username||session.user.email.split('@')[0],email:session.user.email,joinDate:new Date(session.user.created_at).toLocaleDateString('ko-KR'),liveSessions:0,memories:0,interpretations:0,visitedMemories:[],sessionHistory:[]}}}
 (async function(){await checkSession()})();
@@ -905,4 +1137,480 @@ window.selectMemory = selectMemory;
 window.handleConfirm = handleConfirm;
 window.handleExpConfirm = handleExpConfirm;
 window.filterMemories = filterMemories;
+let comparisonScenes = [];
+let comparisonCurrentIndex = 0;
+async function calculateAverageAlignment() {
+    try {
+        const currentData = window.currentStoryData || storyData;
+        if (!currentData || !currentData.scenes) {
+            return { averageAlignment: 0, isTrueEnding: false };
+        }
+        const memoryId = currentData.id || (allMemoriesData[currentMemory] && allMemoriesData[currentMemory].id);
+        if (!memoryId) {
+            return { averageAlignment: 0, isTrueEnding: false };
+        }
+        const sceneAlignments = [];
+        supabaseClient = getSupabaseClient();
+        for (let i = 0; i < currentData.scenes.length; i++) {
+            const scene = currentData.scenes[i];
+            if (scene.sceneType === 'branch' || scene.sceneType === 'ending') {
+                let alignment = null;
+                if (window.archiveSceneAlignments && window.archiveSceneAlignments[i] !== undefined) {
+                    alignment = window.archiveSceneAlignments[i];
+                } else if (supabaseClient && scene.id) {
+                    const { data: playData } = await supabaseClient
+                        .from('plays')
+                        .select('alignment, user_emotion')
+                        .eq('scene_id', scene.id)
+                        .eq('memory_id', memoryId)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                    if (playData) {
+                        if (playData.alignment !== null && playData.alignment !== undefined) {
+                            alignment = playData.alignment;
+                        } else if (playData.user_emotion && scene.originalEmotion) {
+                            alignment = cosineSimilarity(playData.user_emotion, scene.originalEmotion);
+                        }
+                    } else if (window.archiveUserEmotions && window.archiveUserEmotions[i] && scene.originalEmotion) {
+                        alignment = cosineSimilarity(window.archiveUserEmotions[i].emotion, scene.originalEmotion);
+                    }
+                } else if (window.archiveUserEmotions && window.archiveUserEmotions[i] && scene.originalEmotion) {
+                    alignment = cosineSimilarity(window.archiveUserEmotions[i].emotion, scene.originalEmotion);
+                }
+                if (alignment !== null && alignment !== undefined) {
+                    sceneAlignments.push(alignment);
+                }
+            }
+        }
+        if (sceneAlignments.length === 0) {
+            return { averageAlignment: 0, isTrueEnding: false };
+        }
+        const averageAlignment = sceneAlignments.reduce((sum, val) => sum + val, 0) / sceneAlignments.length;
+        const isTrueEnding = averageAlignment >= 0.65;
+        console.log('평균 정렬도 계산:', { sceneAlignments, averageAlignment, isTrueEnding });
+        return { averageAlignment, isTrueEnding };
+    } catch (e) {
+        console.error('calculateAverageAlignment error:', e);
+        return { averageAlignment: 0, isTrueEnding: false };
+    }
+}
+async function showComparisonView() {
+    try {
+        const currentData = window.currentStoryData || storyData;
+        if (!currentData || !currentData.scenes) {
+            console.error('비교 화면: 장면 데이터가 없습니다');
+            return;
+        }
+        const memoryId = currentData.id || (allMemoriesData[currentMemory] && allMemoriesData[currentMemory].id);
+        if (!memoryId) {
+            console.error('비교 화면: memory_id를 찾을 수 없습니다');
+            return;
+        }
+        const branchEndingScenes = currentData.scenes.filter((scene, index) => 
+            (scene.sceneType === 'branch' || scene.sceneType === 'ending') && 
+            window.archiveUserEmotions && window.archiveUserEmotions[index]
+        );
+        if (branchEndingScenes.length === 0) {
+            console.log('비교 화면: 비교할 장면이 없습니다');
+            const alignmentResult = await calculateAverageAlignment();
+            showEndScreen(alignmentResult);
+            return;
+        }
+        comparisonScenes = [];
+        supabaseClient = getSupabaseClient();
+        for (let i = 0; i < currentData.scenes.length; i++) {
+            const scene = currentData.scenes[i];
+            if (scene.sceneType === 'branch' || scene.sceneType === 'ending') {
+                const userEmotionData = window.archiveUserEmotions && window.archiveUserEmotions[i] ? window.archiveUserEmotions[i] : null;
+                let playData = null;
+                let sceneAlignment = null;
+                if (supabaseClient && scene.id) {
+                    const { data: playsData, error: playsError } = await supabaseClient
+                        .from('plays')
+                        .select('user_emotion, user_reason, alignment')
+                        .eq('scene_id', scene.id)
+                        .eq('memory_id', memoryId)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                    if (playsError) {
+                        console.warn(`[비교 화면] Scene ${scene.id} plays 조회 실패:`, playsError);
+                    }
+                    if (playsData) {
+                        playData = playsData;
+                        sceneAlignment = playsData.alignment;
+                    }
+                }
+                if (!playData && !userEmotionData) {
+                    console.log(`[비교 화면] Scene ${i} (${scene.id}): plays 데이터와 archiveUserEmotions 모두 없음, 스킵`);
+                    continue;
+                }
+                if (sceneAlignment === null && window.archiveSceneAlignments && window.archiveSceneAlignments[i] !== undefined) {
+                    sceneAlignment = window.archiveSceneAlignments[i];
+                }
+                let userEmotion = playData?.user_emotion || (userEmotionData ? userEmotionData.emotion : null);
+                let originalEmotion = scene.originalEmotion;
+                if (typeof userEmotion === 'string') {
+                    try {
+                        userEmotion = JSON.parse(userEmotion);
+                    } catch (e) {
+                        console.error(`[비교 화면] user_emotion 파싱 실패 (scene ${i}):`, e);
+                    }
+                }
+                if (typeof originalEmotion === 'string') {
+                    try {
+                        originalEmotion = JSON.parse(originalEmotion);
+                    } catch (e) {
+                        console.error(`[비교 화면] originalEmotion 파싱 실패 (scene ${i}):`, e);
+                    }
+                }
+                if (!userEmotion || !originalEmotion) {
+                    console.warn(`[비교 화면] Scene ${i} (${scene.id}): 감정 벡터 누락`, {
+                        hasUserEmotion: !!userEmotion,
+                        hasOriginalEmotion: !!originalEmotion
+                    });
+                    continue;
+                }
+                console.log(`[비교 화면] Scene ${i} 데이터:`, {
+                    sceneId: scene.id,
+                    sceneType: scene.sceneType,
+                    userEmotion: userEmotion,
+                    originalEmotion: originalEmotion,
+                    userEmotionType: typeof userEmotion,
+                    originalEmotionType: typeof originalEmotion,
+                    userEmotionKeys: userEmotion ? Object.keys(userEmotion) : null,
+                    originalEmotionKeys: originalEmotion ? Object.keys(originalEmotion) : null
+                });
+                comparisonScenes.push({
+                    scene: scene,
+                    sceneIndex: i,
+                    userEmotion: userEmotion,
+                    userReason: playData?.user_reason || (userEmotionData ? userEmotionData.reason : ''),
+                    originalEmotion: originalEmotion,
+                    originalReason: scene.originalReason || '',
+                    alignment: sceneAlignment
+                });
+            }
+        }
+        if (comparisonScenes.length === 0) {
+            console.log('비교 화면: 비교할 장면이 없습니다');
+            const alignmentResult = await calculateAverageAlignment();
+            showEndScreen(alignmentResult);
+            return;
+        }
+        comparisonCurrentIndex = 0;
+        const alignmentResult = await calculateAverageAlignment();
+        window.archiveAlignmentResult = alignmentResult;
+        const comparisonViewEl = document.getElementById('comparisonView');
+        if (comparisonViewEl) {
+            comparisonViewEl.style.display = 'flex';
+            comparisonViewEl.style.zIndex = '2500';
+        }
+        renderComparisonView();
+        setupComparisonSwipe();
+    } catch (e) {
+        console.error('showComparisonView error:', e);
+        showEndScreen();
+    }
+}
+function renderComparisonView() {
+    if (comparisonScenes.length === 0) return;
+    const container = document.getElementById('comparisonScenesContainer');
+    const dotsContainer = document.getElementById('comparisonDots');
+    const counterEl = document.getElementById('comparisonSceneCounter');
+    if (!container || !dotsContainer || !counterEl) return;
+    container.innerHTML = '';
+    dotsContainer.innerHTML = '';
+    comparisonScenes.forEach((item, index) => {
+        const slide = document.createElement('div');
+        slide.className = 'comparison-scene-slide';
+        slide.innerHTML = `
+            <div class="comparison-scene-text">${item.scene.text || ''}</div>
+            <div class="comparison-waves-container">
+                <div class="comparison-wave-item">
+                    <div class="comparison-wave-label user">체험자 (B)의 감정</div>
+                    <div class="comparison-wave-canvas-container">
+                        <canvas class="comparison-wave-canvas" data-type="user" data-index="${index}"></canvas>
+                        <div class="comparison-tooltip">${item.userReason || '이유 없음'}</div>
+                    </div>
+                </div>
+                <div class="comparison-wave-item">
+                    <div class="comparison-wave-label original">원본 (A)의 감정</div>
+                    <div class="comparison-wave-canvas-container">
+                        <canvas class="comparison-wave-canvas" data-type="original" data-index="${index}"></canvas>
+                        <div class="comparison-tooltip">${item.originalReason || '이유 없음'}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(slide);
+        const dot = document.createElement('div');
+        dot.className = 'comparison-dot';
+        if (index === 0) dot.classList.add('active');
+        dot.onclick = () => navigateComparisonTo(index);
+        dotsContainer.appendChild(dot);
+    });
+    counterEl.textContent = `${comparisonCurrentIndex + 1} / ${comparisonScenes.length}`;
+    updateComparisonNavigation();
+    renderComparisonWaves();
+    updateComparisonAlignment();
+    updateComparisonAverageAlignment();
+}
+function renderComparisonWaves() {
+    console.log('[renderComparisonWaves] 시작, comparisonScenes:', comparisonScenes);
+    stopComparisonWaveAnimation();
+    startComparisonWaveAnimation();
+}
+function startComparisonWaveAnimation() {
+    if (comparisonWaveAnimationId) {
+        cancelAnimationFrame(comparisonWaveAnimationId);
+    }
+    comparisonWaveTime = 0;
+    const initializedCanvases = new Map();
+    function initializeCanvas(canvas) {
+        if (!canvas) return false;
+        if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) return false;
+        if (initializedCanvases.has(canvas)) return true;
+        try {
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth * 2;
+            canvas.height = canvas.offsetHeight * 2;
+            ctx.scale(2, 2);
+            initializedCanvases.set(canvas, true);
+            return true;
+        } catch (e) {
+            console.error('Comparison canvas initialization error:', e);
+            return false;
+        }
+    }
+    function drawComparisonWave(canvas, emotionVector, timeOffset, type) {
+        if (!canvas || !emotionVector) return;
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width / 2;
+        const height = canvas.height / 2;
+        const centerY = height / 2;
+        const t = comparisonWaveTime + timeOffset;
+        const waveStyle = emotionVectorToWaveStyle(emotionVector);
+        const points = [];
+        const segments = 100;
+        for (let i = 0; i <= segments; i++) {
+            const x = (i / segments) * width;
+            const normalizedX = x / width;
+            let y = Math.sin(x * waveStyle.frequency + t * waveStyle.speed) * waveStyle.amplitude;
+            y += Math.sin(x * waveStyle.frequency * 2.3 + t * waveStyle.speed * 0.7) * (waveStyle.amplitude * 0.4);
+            y += Math.sin(x * waveStyle.frequency * 0.4 + t * waveStyle.speed * 0.3) * (waveStyle.amplitude * 0.6);
+            const chaosAmount = waveStyle.chaos * 15;
+            y += (noise(x * 0.01, t * 0.1, 0) - 0.5) * chaosAmount;
+            const edgeFade = Math.sin(normalizedX * Math.PI);
+            y *= edgeFade;
+            points.push({ x, y: centerY + y });
+        }
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 2; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2;
+            const yc = (points[i].y + points[i + 1].y) / 2;
+            ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+        const color = waveStyle.color;
+        ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},0.8)`;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+    }
+    function animate() {
+        comparisonScenes.forEach((item, index) => {
+            const userCanvas = document.querySelector(`canvas[data-type="user"][data-index="${index}"]`);
+            const originalCanvas = document.querySelector(`canvas[data-type="original"][data-index="${index}"]`);
+            if (userCanvas && item.userEmotion) {
+                if (initializeCanvas(userCanvas)) {
+                    const ctx = userCanvas.getContext('2d');
+                    const width = userCanvas.width / 2;
+                    const height = userCanvas.height / 2;
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.fillStyle = 'rgba(18, 18, 26, 1)';
+                    ctx.fillRect(0, 0, width, height);
+                    drawComparisonWave(userCanvas, item.userEmotion, 0, 'user');
+                }
+            }
+            if (originalCanvas && item.originalEmotion) {
+                if (initializeCanvas(originalCanvas)) {
+                    const ctx = originalCanvas.getContext('2d');
+                    const width = originalCanvas.width / 2;
+                    const height = originalCanvas.height / 2;
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.fillStyle = 'rgba(18, 18, 26, 1)';
+                    ctx.fillRect(0, 0, width, height);
+                    drawComparisonWave(originalCanvas, item.originalEmotion, 50, 'original');
+                }
+            }
+        });
+        comparisonWaveTime += 0.016;
+        comparisonWaveAnimationId = requestAnimationFrame(animate);
+    }
+    animate();
+}
+function stopComparisonWaveAnimation() {
+    if (comparisonWaveAnimationId) {
+        cancelAnimationFrame(comparisonWaveAnimationId);
+        comparisonWaveAnimationId = null;
+    }
+}
+function updateComparisonAlignment() {
+    if (comparisonScenes.length === 0 || comparisonCurrentIndex >= comparisonScenes.length) {
+        console.warn('[updateComparisonAlignment] 비교 장면이 없습니다');
+        return;
+    }
+    const item = comparisonScenes[comparisonCurrentIndex];
+    console.log(`[updateComparisonAlignment] Scene ${comparisonCurrentIndex}:`, {
+        hasAlignment: item.alignment !== null && item.alignment !== undefined,
+        alignment: item.alignment,
+        hasUserEmotion: !!item.userEmotion,
+        hasOriginalEmotion: !!item.originalEmotion,
+        userEmotion: item.userEmotion,
+        originalEmotion: item.originalEmotion
+    });
+    let alignment = null;
+    if (item.alignment !== null && item.alignment !== undefined) {
+        alignment = item.alignment;
+        console.log(`[updateComparisonAlignment] 저장된 정렬도 사용: ${alignment}`);
+    } else if (item.userEmotion && item.originalEmotion) {
+        console.log(`[updateComparisonAlignment] 정렬도 계산 시작...`);
+        alignment = cosineSimilarity(item.userEmotion, item.originalEmotion);
+        console.log(`[updateComparisonAlignment] 계산된 정렬도: ${alignment}`);
+    } else {
+        console.warn(`[updateComparisonAlignment] 정렬도를 계산할 수 없습니다:`, {
+            hasUserEmotion: !!item.userEmotion,
+            hasOriginalEmotion: !!item.originalEmotion
+        });
+    }
+    if (alignment === null) {
+        console.warn('[updateComparisonAlignment] 정렬도가 null입니다');
+        return;
+    }
+    const alignmentValueEl = document.getElementById('comparisonAlignmentValue');
+    const alignmentFillEl = document.getElementById('comparisonAlignmentFill');
+    if (alignmentValueEl) {
+        alignmentValueEl.textContent = alignment.toFixed(2);
+        console.log(`[updateComparisonAlignment] 정렬도 표시 업데이트: ${alignment.toFixed(2)}`);
+    }
+    if (alignmentFillEl) {
+        alignmentFillEl.style.width = (alignment * 100) + '%';
+    }
+}
+function updateComparisonAverageAlignment() {
+    const alignmentResult = window.archiveAlignmentResult;
+    if (!alignmentResult) return;
+    const averageValueEl = document.getElementById('comparisonAverageAlignmentValue');
+    const averageFillEl = document.getElementById('comparisonAverageAlignmentFill');
+    const trueEndingBadge = document.getElementById('comparisonTrueEndingBadge');
+    if (averageValueEl) {
+        averageValueEl.textContent = alignmentResult.averageAlignment.toFixed(2);
+    }
+    if (averageFillEl) {
+        averageFillEl.style.width = (alignmentResult.averageAlignment * 100) + '%';
+    }
+    if (trueEndingBadge) {
+        if (alignmentResult.isTrueEnding) {
+            trueEndingBadge.style.display = 'inline-block';
+        } else {
+            trueEndingBadge.style.display = 'none';
+        }
+    }
+}
+function navigateComparison(direction) {
+    const newIndex = comparisonCurrentIndex + direction;
+    if (newIndex < 0 || newIndex >= comparisonScenes.length) return;
+    comparisonCurrentIndex = newIndex;
+    const container = document.getElementById('comparisonScenesContainer');
+    if (container) {
+        container.style.transform = `translateX(-${comparisonCurrentIndex * 100}%)`;
+    }
+    const dots = document.querySelectorAll('.comparison-dot');
+    dots.forEach((dot, index) => {
+        if (index === comparisonCurrentIndex) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+    const counterEl = document.getElementById('comparisonSceneCounter');
+    if (counterEl) {
+        counterEl.textContent = `${comparisonCurrentIndex + 1} / ${comparisonScenes.length}`;
+    }
+    updateComparisonNavigation();
+    updateComparisonAlignment();
+}
+function navigateComparisonTo(index) {
+    if (index < 0 || index >= comparisonScenes.length) return;
+    comparisonCurrentIndex = index;
+    const container = document.getElementById('comparisonScenesContainer');
+    if (container) {
+        container.style.transform = `translateX(-${comparisonCurrentIndex * 100}%)`;
+    }
+    const dots = document.querySelectorAll('.comparison-dot');
+    dots.forEach((dot, idx) => {
+        if (idx === comparisonCurrentIndex) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+    const counterEl = document.getElementById('comparisonSceneCounter');
+    if (counterEl) {
+        counterEl.textContent = `${comparisonCurrentIndex + 1} / ${comparisonScenes.length}`;
+    }
+    updateComparisonNavigation();
+    updateComparisonAlignment();
+}
+function updateComparisonNavigation() {
+    const prevBtn = document.getElementById('comparisonPrevBtn');
+    const nextBtn = document.getElementById('comparisonNextBtn');
+    if (prevBtn) {
+        prevBtn.disabled = comparisonCurrentIndex === 0;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = comparisonCurrentIndex === comparisonScenes.length - 1;
+    }
+}
+function setupComparisonSwipe() {
+    const swiper = document.getElementById('comparisonSwiper');
+    if (!swiper) return;
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+    swiper.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+    });
+    swiper.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentX = e.touches[0].clientX;
+    });
+    swiper.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        const diff = startX - currentX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0) {
+                navigateComparison(1);
+            } else {
+                navigateComparison(-1);
+            }
+        }
+    });
+}
+function closeComparisonView() {
+    stopComparisonWaveAnimation();
+    const comparisonViewEl = document.getElementById('comparisonView');
+    if (comparisonViewEl) {
+        comparisonViewEl.style.display = 'none';
+    }
+    const alignmentResult = window.archiveAlignmentResult || { averageAlignment: 0, isTrueEnding: false };
+    showEndScreen(alignmentResult);
+}
+window.navigateComparison = navigateComparison;
+window.closeComparisonView = closeComparisonView;
 

@@ -269,6 +269,36 @@
                 <div class="end-buttons"><button class="end-btn" onclick="saveMemory()">기억 저장하기</button><button class="end-btn" onclick="goToIntro()">처음으로</button></div>
             </div>
         </div>
+        <div class="comparison-view" id="comparisonView" style="display:none">
+            <div class="comparison-header">
+                <button class="back-btn" onclick="closeComparisonView()">← 목록으로</button>
+                <h2 class="comparison-title">감정 비교</h2>
+                <div class="comparison-scene-indicator">
+                    <span id="comparisonSceneCounter">1 / 1</span>
+                </div>
+            </div>
+            <div class="comparison-swiper" id="comparisonSwiper">
+                <div class="comparison-scenes-container" id="comparisonScenesContainer"></div>
+            </div>
+            <div class="comparison-controls">
+                <button class="comparison-nav-btn prev" id="comparisonPrevBtn" onclick="navigateComparison(-1)">←</button>
+                <div class="comparison-dots" id="comparisonDots"></div>
+                <button class="comparison-nav-btn next" id="comparisonNextBtn" onclick="navigateComparison(1)">→</button>
+            </div>
+            <div class="comparison-alignment-section">
+                <div class="comparison-alignment-label">현재 장면 정렬도</div>
+                <div class="comparison-alignment-value" id="comparisonAlignmentValue">0.00</div>
+                <div class="comparison-alignment-bar">
+                    <div class="comparison-alignment-fill" id="comparisonAlignmentFill" style="width:0%"></div>
+                </div>
+                <div class="comparison-alignment-label" style="margin-top:2rem">평균 정렬도</div>
+                <div class="comparison-alignment-value" id="comparisonAverageAlignmentValue">0.00</div>
+                <div class="comparison-alignment-bar">
+                    <div class="comparison-alignment-fill" id="comparisonAverageAlignmentFill" style="width:0%"></div>
+                </div>
+                <div id="comparisonTrueEndingBadge" class="true-ending-badge" style="margin-top:1.5rem;display:none">TRUE ENDING</div>
+            </div>
+        </div>
     </div>
     <div class="emotion-modal" id="emotionModal"><div class="emotion-modal-content"><p class="emotion-question" id="emotionQuestion">왜 그렇게 했어?</p><input type="text" class="emotion-input-field" id="emotionInputField" placeholder="당신의 이유를 말해주세요"><button class="emotion-submit" onclick="submitEmotion()">확인</button></div></div>
     <div class="emotion-modal" id="memoryFateModal"><div class="emotion-modal-content"><p class="emotion-question">이 기억의 운명을 선택하세요</p><div class="fate-buttons"><button class="fate-btn" onclick="selectMemoryFate('preserve')">보존</button><button class="fate-btn" onclick="selectMemoryFate('dilute')">자연 소멸</button><button class="fate-btn" onclick="selectMemoryFate('anonymous')">완전 익명</button></div><div class="fate-descriptions"><div class="fate-desc" id="fateDescPreserve">원본 구조를 끝까지 유지</div><div class="fate-desc" id="fateDescDilute">레이어 누적으로 서서히 희석</div><div class="fate-desc" id="fateDescAnonymous">처음부터 공동 기억으로 출발</div></div></div></div>
@@ -287,7 +317,10 @@
                 <a href="mailto:dohhan92947@gmail.com" class="footer-link">dohhan92947@gmail.com</a>
             </div>
             <div class="footer-line">
-                <span>© 2025 The Etched Mutation. All rights reserved.</span>
+                <span>© 2025 박도한. All rights reserved.</span>
+            </div>
+            <div class="footer-line">
+                <span>@dohhan_</span>
             </div>
         </div>
     </footer>

@@ -48,7 +48,29 @@ export function getSupabaseClient() {
         // 아직 초기화되지 않았으면 시도
         initSupabaseClient();
     }
+    
+    // 클라이언트가 없으면 null 반환 (에러를 던지지 않음)
+    if (!supabaseClient) {
+        console.warn('Supabase 클라이언트가 아직 초기화되지 않았습니다');
+    }
+    
     return supabaseClient;
+}
+
+// Supabase 클라이언트가 준비될 때까지 대기하는 함수
+export async function waitForSupabaseClient(maxWaitTime = 10000) {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitTime) {
+        const client = getSupabaseClient();
+        if (client) {
+            return client;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.error('Supabase 클라이언트 초기화 대기 시간 초과');
+    return null;
 }
 
 // DOMContentLoaded 시 자동 초기화
