@@ -251,7 +251,7 @@
                 <div class="scene-header"><button class="back-btn" onclick="backToList()">← 목록으로</button><div class="progress-indicator"><span>장면</span><div class="progress-dots" id="progressDots"></div><span id="sceneCounter">1/5</span></div></div>
                 <div class="scene-content">
                     <div class="scene-main"><div class="echo-layer" id="echoLayer"></div><div class="scene-text" id="sceneText"></div><div class="choices-container" id="choicesContainer"></div><div class="free-input-container"><textarea class="free-input" id="freeInput" rows="2" placeholder="다른 행동을 입력하세요..."></textarea></div></div>
-                    <div class="sidebar"><div class="sidebar-section"><h4 class="sidebar-title">감정 파동</h4><div class="wave-container"><canvas class="wave-canvas" id="waveCanvas"></canvas></div></div><div class="sidebar-section"><div class="emotion-dist"><div class="emotion-dist-title">이 장면의 감정 분포</div><div class="emotion-bar"><span class="emotion-label">공포</span><div class="emotion-fill-container"><div class="emotion-fill fear" id="emotionFear"></div></div><span class="emotion-value" id="emotionFearVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">슬픔</span><div class="emotion-fill-container"><div class="emotion-fill sadness" id="emotionSadness"></div></div><span class="emotion-value" id="emotionSadnessVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">죄책감</span><div class="emotion-fill-container"><div class="emotion-fill guilt" id="emotionGuilt"></div></div><span class="emotion-value" id="emotionGuiltVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">분노</span><div class="emotion-fill-container"><div class="emotion-fill anger" id="emotionAnger"></div></div><span class="emotion-value" id="emotionAngerVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">그리움</span><div class="emotion-fill-container"><div class="emotion-fill longing" id="emotionLonging"></div></div><span class="emotion-value" id="emotionLongingVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">고립감</span><div class="emotion-fill-container"><div class="emotion-fill isolation" id="emotionIsolation"></div></div><span class="emotion-value" id="emotionIsolationVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">무감각</span><div class="emotion-fill-container"><div class="emotion-fill numbness" id="emotionNumbness"></div></div><span class="emotion-value" id="emotionNumbnessVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">도덕적 고통</span><div class="emotion-fill-container"><div class="emotion-fill moralPain" id="emotionMoralPain"></div></div><span class="emotion-value" id="emotionMoralPainVal">0%</span></div></div></div><div class="sidebar-section"><div class="alignment-meter"><div class="alignment-label">감정 구조 정렬도</div><div class="alignment-value" id="alignmentValue">0.00</div><div class="alignment-bar"><div class="alignment-fill" id="alignmentFill" style="width:0%"></div></div><div class="alignment-note">트루엔딩 조건: 0.80 이상</div></div></div></div>
+                    <div class="sidebar"><div class="sidebar-section"><h4 class="sidebar-title">감정 파동</h4><div class="wave-container"><canvas class="wave-canvas" id="waveCanvas"></canvas></div></div><div class="sidebar-section"><div class="emotion-dist"><div class="emotion-dist-title">이 장면의 감정 분포</div><div class="emotion-bar"><span class="emotion-label">공포</span><div class="emotion-fill-container"><div class="emotion-fill fear" id="emotionFear"></div></div><span class="emotion-value" id="emotionFearVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">슬픔</span><div class="emotion-fill-container"><div class="emotion-fill sadness" id="emotionSadness"></div></div><span class="emotion-value" id="emotionSadnessVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">죄책감</span><div class="emotion-fill-container"><div class="emotion-fill guilt" id="emotionGuilt"></div></div><span class="emotion-value" id="emotionGuiltVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">분노</span><div class="emotion-fill-container"><div class="emotion-fill anger" id="emotionAnger"></div></div><span class="emotion-value" id="emotionAngerVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">그리움</span><div class="emotion-fill-container"><div class="emotion-fill longing" id="emotionLonging"></div></div><span class="emotion-value" id="emotionLongingVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">고립감</span><div class="emotion-fill-container"><div class="emotion-fill isolation" id="emotionIsolation"></div></div><span class="emotion-value" id="emotionIsolationVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">무감각</span><div class="emotion-fill-container"><div class="emotion-fill numbness" id="emotionNumbness"></div></div><span class="emotion-value" id="emotionNumbnessVal">0%</span></div><div class="emotion-bar"><span class="emotion-label">도덕적 고통</span><div class="emotion-fill-container"><div class="emotion-fill moralPain" id="emotionMoralPain"></div></div><span class="emotion-value" id="emotionMoralPainVal">0%</span></div></div></div><div class="sidebar-section"><div class="alignment-meter"><div class="alignment-label">감정 구조 정렬도</div><div class="alignment-value" id="alignmentValue">0.00</div><div class="alignment-bar"><div class="alignment-fill" id="alignmentFill" style="width:0%"></div></div><div class="alignment-note">트루엔딩 조건: 0.65 이상</div></div></div></div>
                 </div>
             </div>
         </div>
@@ -263,10 +263,115 @@
             <div class="end-content" id="endContent" style="opacity:0">
                 <div class="true-ending-badge" id="trueEndingBadge">TRUE ENDING</div>
                 <h2 class="end-title" id="endTitle">기억의 끝에서</h2>
-                <div class="comparison-grid"><div class="comparison-col"><div class="comparison-label">당신의 선택</div><div class="comparison-choice" id="yourChoice">—</div><div class="comparison-reason" id="yourReason">"—"</div></div><div class="comparison-col"><div class="comparison-label">그 사람의 선택</div><div class="comparison-choice" id="theirChoice">—</div><div class="comparison-reason" id="theirReason">"—"</div></div></div>
-                <div class="final-alignment" id="finalAlignment">감정 구조 정렬도: 0.00</div>
+
+                <!-- 정렬도 표시 -->
+                <div class="final-alignment" id="finalAlignment">
+                    <span class="alignment-label-text">정렬도</span>
+                    <span class="alignment-value-large" id="finalAlignmentValue">0.00</span>
+                </div>
+
+                <!-- 장면별 비교 (축소 가능) -->
+                <div class="comparison-section">
+                    <div class="comparison-toggle" onclick="toggleComparisonDetail()">
+                        <span>장면별 비교 보기</span>
+                        <span class="toggle-icon" id="comparisonToggleIcon">▼</span>
+                    </div>
+                    <div class="comparison-detail" id="comparisonDetail" style="display:none">
+                        <div class="comparison-header-row">
+                            <div class="comparison-header-cell">장면</div>
+                            <div class="comparison-header-cell">당신의 선택</div>
+                            <div class="comparison-header-cell">원본 선택</div>
+                            <div class="comparison-header-cell">일치</div>
+                        </div>
+                        <div class="comparison-body" id="comparisonBody">
+                            <!-- 동적으로 생성됨 -->
+                        </div>
+                    </div>
+                    <!-- 마지막 장면 요약 (항상 표시) -->
+                    <div class="comparison-summary" id="comparisonSummary">
+                        <div class="comparison-grid">
+                            <div class="comparison-col">
+                                <div class="comparison-label">당신의 선택</div>
+                                <div class="comparison-choice" id="yourChoice">—</div>
+                                <div class="comparison-reason" id="yourReason">"—"</div>
+                            </div>
+                            <div class="comparison-col">
+                                <div class="comparison-label">그 사람의 선택</div>
+                                <div class="comparison-choice" id="theirChoice">—</div>
+                                <div class="comparison-reason" id="theirReason">"—"</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <p class="final-message" id="finalMessage">당신은 누군가의 기억 속에 있었습니다.</p>
-                <div class="end-buttons"><button class="end-btn" onclick="saveMemory()">기억 저장하기</button><button class="end-btn" onclick="goToIntro()">처음으로</button></div>
+
+                <!-- 트루엔딩 보상 섹션 -->
+                <div class="true-ending-rewards" id="trueEndingRewards" style="display:none">
+                    <div class="reward-section">
+                        <button class="reward-btn" id="viewOriginalBtn" onclick="viewOriginalMemory()">
+                            원본 기억 열람하기
+                        </button>
+                        <p class="reward-desc">오염 전의 원본을 볼 수 있습니다</p>
+                    </div>
+                    <div class="reward-section">
+                        <button class="reward-btn" id="sendNoteBtn" onclick="openNoteModal()">
+                            기록자에게 쪽지 보내기
+                        </button>
+                        <p class="reward-desc">익명으로 단 한 번만 보낼 수 있습니다</p>
+                    </div>
+                </div>
+
+                <div class="end-buttons">
+                    <button class="end-btn" onclick="saveMemory()">기억 저장하기</button>
+                    <button class="end-btn" onclick="goToIntro()">처음으로</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 쪽지 모달 -->
+        <div class="note-modal" id="noteModal">
+            <div class="note-modal-content">
+                <h3 class="note-title">기록자에게</h3>
+                <p class="note-subtitle">이 메시지는 단 한 번만 보낼 수 있고, 답장은 받을 수 없습니다.</p>
+                <textarea class="note-textarea" id="noteTextarea" maxlength="100" placeholder="최대 100자" oninput="updateNoteCharCount()"></textarea>
+                <div class="note-char-count"><span id="noteCharCount">0</span>/100</div>
+                <div class="note-buttons">
+                    <button class="note-btn send" onclick="sendNote()">보내기</button>
+                    <button class="note-btn cancel" onclick="closeNoteModal()">보내지 않기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 원본 열람 모달 -->
+        <div class="original-modal" id="originalModal">
+            <div class="original-modal-content">
+                <div class="original-modal-header">
+                    <h3 class="original-title">원본 기억</h3>
+                    <button class="original-close-btn" onclick="closeOriginalModal()">✕</button>
+                </div>
+                <div class="original-body" id="originalBody">
+                    <!-- 동적으로 생성됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 안전 모달 -->
+        <div class="safety-modal" id="safetyModal">
+            <div class="safety-modal-content">
+                <div class="safety-speaker">또다른 나</div>
+                <p class="safety-message">지금 많이 힘든 것 같아.<br>이 이야기는 여기서 멈춰도 괜찮아.</p>
+                <div class="safety-resources">
+                    <p>혹시 누군가와 이야기하고 싶다면:</p>
+                    <ul>
+                        <li>자살예방상담전화 <strong>1393</strong> (24시간)</li>
+                        <li>정신건강위기상담 <strong>1577-0199</strong></li>
+                    </ul>
+                </div>
+                <div class="safety-buttons">
+                    <button class="safety-btn continue" onclick="closeSafetyModal(true)">계속하기</button>
+                    <button class="safety-btn exit" onclick="closeSafetyModal(false)">나가기</button>
+                </div>
             </div>
         </div>
     </div>

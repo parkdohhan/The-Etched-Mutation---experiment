@@ -650,10 +650,24 @@ function goToScene(index){if(index<=currentScene){currentScene=index;renderScene
 function renderScene(){try{const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면을 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];if(!scene||!scene.text){showNotification('장면 텍스트를 불러올 수 없습니다');return}const sceneTextEl=document.getElementById('sceneText');if(sceneTextEl)sceneTextEl.textContent=scene.text;if(scene.echoWords)renderEchoLayer(scene.echoWords);if(scene.choices)renderChoices(scene.choices);if(scene.emotionDist)updateEmotionDist(scene.emotionDist);const sceneCounterEl=document.getElementById('sceneCounter');if(sceneCounterEl)sceneCounterEl.textContent=(currentScene+1)+'/'+currentData.scenes.length;const dots=document.querySelectorAll('#progressDots .progress-dot');dots.forEach((dot,i)=>{dot.className='progress-dot';if(i<currentScene)dot.classList.add('visited');if(i===currentScene)dot.classList.add('active')});const alignmentValueEl=document.getElementById('alignmentValue');if(alignmentValueEl)alignmentValueEl.textContent=currentAlignment.toFixed(2);const alignmentFillEl=document.getElementById('alignmentFill');if(alignmentFillEl)alignmentFillEl.style.width=(currentAlignment*100)+'%'}catch(e){console.error('renderScene error:',e);showNotification('장면을 렌더링하는 중 오류가 발생했습니다')}}
 function renderEchoLayer(words){const layer=document.getElementById('echoLayer');if(!layer)return;layer.innerHTML='';if(!words||!Array.isArray(words))return;words.forEach(word=>{const span=document.createElement('span');span.className='echo-word';span.textContent=word;span.style.top=(20+Math.random()*60)+'%';span.style.left=(10+Math.random()*80)+'%';layer.appendChild(span)})}
 function renderChoices(choices){const container=document.getElementById('choicesContainer');if(!container)return;container.innerHTML='';if(!choices||!Array.isArray(choices))return;choices.forEach((choice,i)=>{const btn=document.createElement('button');btn.className='choice-btn';btn.textContent=choice.text;btn.onclick=function(){makeChoice(i)};container.appendChild(btn)})}
-function makeChoice(choiceIndex){try{userChoices.push(choiceIndex);const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const sceneType=scene.sceneType||'normal';if(sceneType==='branch'||sceneType==='ending'){const questionEl=document.getElementById('emotionQuestion');if(questionEl)questionEl.textContent=currentScene===0?"왜 그렇게 했어?":"왜 그런 선택을 했어?";const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.add('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.focus()}else{proceedToNextScene()}}catch(e){console.error('makeChoice error:',e);showNotification('오류가 발생했습니다')}}
+function makeChoice(choiceIndex){try{userChoices.push(choiceIndex);const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const sceneType=scene.sceneType||'normal';
+    // Phase 1: askReason 플래그 지원 - 명시적 askReason 또는 sceneType이 branch/ending인 경우
+    const shouldAskReason = scene.askReason === true || sceneType==='branch'||sceneType==='ending';
+    if(shouldAskReason){const questionEl=document.getElementById('emotionQuestion');if(questionEl)questionEl.textContent=currentScene===0?"왜 그렇게 했어?":"왜 그런 선택을 했어?";const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.add('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.focus()}else{userReasons.push(null);proceedToNextScene()}}catch(e){console.error('makeChoice error:',e);showNotification('오류가 발생했습니다')}}
 function proceedToNextScene(){try{const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}if(currentScene<currentData.scenes.length-1){currentScene++;renderScene()}else{showEndScreen()}}catch(e){console.error('proceedToNextScene error:',e);showNotification('오류가 발생했습니다')}}
 function proceedToNextSceneLive(){try{const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}if(currentScene<currentData.scenes.length-1){currentScene++;simulateNarratorInput()}else{showEndScreen()}}catch(e){console.error('proceedToNextSceneLive error:',e);showNotification('오류가 발생했습니다')}}
-function submitEmotion(){try{const reason=document.getElementById('emotionInputField').value||"말하고 싶지 않아";userReasons.push(reason);updateUserStats('interpretation',1);const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.remove('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.value='';const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const choiceMatch=userChoices[currentScene]===scene.originalChoice?0.3:0;const randomSimilarity=0.4+Math.random()*0.3;currentAlignment=Math.min(1,currentAlignment+choiceMatch*0.5+randomSimilarity*0.3);if(currentMode==='live'){updateLiveAlignment(choiceMatch*0.5+randomSimilarity*0.3);liveSceneNum++;const sceneNumEl=document.getElementById('liveSceneNum');if(sceneNumEl)sceneNumEl.textContent=liveSceneNum}if(userChoices[currentScene]===scene.originalChoice)showNpcDialogue("같은 선택... 하지만 이유도 같을까?",3000);else showNpcDialogue("다른 길을 걸었네. 그것도 하나의 해석이야.",3000);setTimeout(()=>{if(currentScene<currentData.scenes.length-1){currentScene++;if(currentMode==='archive')renderScene();else simulateNarratorInput()}else{showEndScreen()}},1500)}catch(e){console.error('submitEmotion error:',e);showNotification('감정을 제출하는 중 오류가 발생했습니다')}}
+function submitEmotion(){try{const reason=document.getElementById('emotionInputField').value||"말하고 싶지 않아";
+
+    // Phase 1: 위기 키워드 감지
+    if(checkForCrisis(reason)){
+        const modalEl=document.getElementById('emotionModal');
+        if(modalEl)modalEl.classList.remove('active');
+        showSafetyModal();
+        userReasons.push(reason);
+        return;
+    }
+
+    userReasons.push(reason);updateUserStats('interpretation',1);const modalEl=document.getElementById('emotionModal');if(modalEl)modalEl.classList.remove('active');const inputEl=document.getElementById('emotionInputField');if(inputEl)inputEl.value='';const currentData=window.currentStoryData||storyData;if(!currentData||!currentData.scenes||!currentData.scenes[currentScene]){showNotification('장면 데이터를 불러올 수 없습니다');return}const scene=currentData.scenes[currentScene];const choiceMatch=userChoices[currentScene]===scene.originalChoice?0.3:0;const randomSimilarity=0.4+Math.random()*0.3;currentAlignment=Math.min(1,currentAlignment+choiceMatch*0.5+randomSimilarity*0.3);if(currentMode==='live'){updateLiveAlignment(choiceMatch*0.5+randomSimilarity*0.3);liveSceneNum++;const sceneNumEl=document.getElementById('liveSceneNum');if(sceneNumEl)sceneNumEl.textContent=liveSceneNum}if(userChoices[currentScene]===scene.originalChoice)showNpcDialogue("같은 선택... 하지만 이유도 같을까?",3000);else showNpcDialogue("다른 길을 걸었네. 그것도 하나의 해석이야.",3000);setTimeout(()=>{if(currentScene<currentData.scenes.length-1){currentScene++;if(currentMode==='archive')renderScene();else simulateNarratorInput()}else{showEndScreen()}},1500)}catch(e){console.error('submitEmotion error:',e);showNotification('감정을 제출하는 중 오류가 발생했습니다')}}
 function updateStrata(){const originalPercent=70-(currentScene*10),interpretPercent=30+(currentScene*10);document.getElementById('strataOriginal').style.height=originalPercent+'%';document.getElementById('strataInterpretation').style.height=interpretPercent+'%';document.getElementById('strataInterpretation').style.bottom=originalPercent+'%'}
 function updateEmotionDist(dist){document.getElementById('emotionFear').style.width=(dist.fear||0)+'%';document.getElementById('emotionFearVal').textContent=(dist.fear||0)+'%';document.getElementById('emotionSadness').style.width=(dist.sadness||0)+'%';document.getElementById('emotionSadnessVal').textContent=(dist.sadness||0)+'%';document.getElementById('emotionGuilt').style.width=(dist.guilt||0)+'%';document.getElementById('emotionGuiltVal').textContent=(dist.guilt||0)+'%';document.getElementById('emotionAnger').style.width=(dist.anger||0)+'%';document.getElementById('emotionAngerVal').textContent=(dist.anger||0)+'%';document.getElementById('emotionLonging').style.width=(dist.longing||0)+'%';document.getElementById('emotionLongingVal').textContent=(dist.longing||0)+'%';document.getElementById('emotionIsolation').style.width=(dist.isolation||0)+'%';document.getElementById('emotionIsolationVal').textContent=(dist.isolation||0)+'%';document.getElementById('emotionNumbness').style.width=(dist.numbness||0)+'%';document.getElementById('emotionNumbnessVal').textContent=(dist.numbness||0)+'%';document.getElementById('emotionMoralPain').style.width=(dist.moralPain||0)+'%';document.getElementById('emotionMoralPainVal').textContent=(dist.moralPain||0)+'%'}
 function startWaveAnimation(){const canvas=document.getElementById('waveCanvas');if(!canvas)return;const ctx=canvas.getContext('2d');canvas.width=canvas.offsetWidth*2;canvas.height=canvas.offsetHeight*2;ctx.scale(2,2);let time=0;function animate(){ctx.fillStyle='rgba(18,18,26,0.1)';ctx.fillRect(0,0,canvas.width/2,canvas.height/2);const width=canvas.width/2,height=canvas.height/2,centerY=height/2;ctx.beginPath();ctx.strokeStyle='rgba(196,168,130,0.6)';ctx.lineWidth=1.5;for(let x=0;x<width;x++){const y=centerY+Math.sin(x*0.02+time*0.05)*15+Math.sin(x*0.01+time*0.03)*10;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();ctx.beginPath();ctx.strokeStyle='rgba(123,143,168,0.6)';ctx.lineWidth=1.5;const offset=(1-currentAlignment)*30;for(let x=0;x<width;x++){const y=centerY+Math.sin(x*0.02+time*0.05+offset)*15+Math.sin(x*0.01+time*0.03+offset*0.5)*10;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();time++;waveAnimationId=requestAnimationFrame(animate)}animate()}
@@ -661,7 +675,274 @@ function startLiveWaveAnimation(){const canvas=document.getElementById('liveWave
 function stopWaveAnimation(){if(waveAnimationId){cancelAnimationFrame(waveAnimationId);waveAnimationId=null}}
 function stopLiveWaveAnimation(){if(liveWaveAnimationId){cancelAnimationFrame(liveWaveAnimationId);liveWaveAnimationId=null}}
 function stopAllAnimations(){stopWaveAnimation();stopLiveWaveAnimation();stopAlignmentWaveAnimation();stopVoiceWaveLiveAnimation();stopLiveVoiceInput()}
-function showEndScreen(){stopAllAnimations();const liveContainerEl=document.getElementById('liveContainer');if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}const endScreenEl=document.getElementById('endScreen');if(endScreenEl){endScreenEl.classList.add('active');endScreenEl.style.cssText='display:flex !important'}const currentData=window.currentStoryData||storyData;const lastScene=currentData.scenes[currentData.scenes.length-1];const lastChoiceIndex=userChoices.length>0?userChoices[userChoices.length-1]:0;const lastReason=userReasons.length>0?userReasons[userReasons.length-1]:"—";document.getElementById('yourChoice').textContent=lastScene.choices[lastChoiceIndex]?lastScene.choices[lastChoiceIndex].text:"—";document.getElementById('yourReason').textContent='"'+lastReason+'"';document.getElementById('theirChoice').textContent=lastScene.choices[lastScene.originalChoice].text;document.getElementById('theirReason').textContent='"'+lastScene.originalReason+'"';document.getElementById('finalAlignment').textContent='감정 구조 정렬도: '+currentAlignment.toFixed(2);if(currentAlignment>=0.8){document.getElementById('trueEndingBadge').classList.add('active');document.getElementById('endTitle').textContent='음각에 닿다';document.getElementById('finalMessage').innerHTML='<strong>트루엔딩에 도달했습니다.</strong><br><br>당신은 그 사람의 감정 구조에 거의 겹쳐졌습니다.<br>이 일치는 원본 지층에 깊게 새겨질 거예요.'}else{document.getElementById('trueEndingBadge').classList.remove('active');document.getElementById('endTitle').textContent='기억의 끝에서';document.getElementById('finalMessage').innerHTML='당신은 누군가의 기억 속을 걸었습니다.<br>같은 행동, 다른 이유. 다른 행동, 같은 정서.<br>완전한 이해는 불가능하지만, 당신의 해석은 이 기억의 윗층에 남습니다.'}startEndStrataAnimation();setTimeout(()=>{if(currentMode==='live'){showNpcDialogue("이제 이 기억은 Live에서 Archive로 넘겨질 거야. 당신의 해석도 함께.",6000)}else{showNpcDialogue("이 기억의 지층 어딘가에, 방금 너의 선택과 이유가 얇은 층으로 남았어.",6000)}},2000);const footer=document.querySelector('.footer');if(footer)footer.classList.add('visible')}
+function showEndScreen(){
+    stopAllAnimations();
+    const liveContainerEl=document.getElementById('liveContainer');
+    if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}
+    const archiveContainerEl=document.getElementById('archiveContainer');
+    if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}
+    const sceneViewerEl=document.getElementById('sceneViewer');
+    if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}
+    const endScreenEl=document.getElementById('endScreen');
+    if(endScreenEl){endScreenEl.classList.add('active');endScreenEl.style.cssText='display:flex !important'}
+
+    const currentData=window.currentStoryData||storyData;
+    const lastScene=currentData.scenes[currentData.scenes.length-1];
+    const lastChoiceIndex=userChoices.length>0?userChoices[userChoices.length-1]:0;
+    const lastReason=userReasons.length>0?userReasons[userReasons.length-1]:"—";
+
+    // 마지막 장면 비교 (요약)
+    document.getElementById('yourChoice').textContent=lastScene.choices[lastChoiceIndex]?lastScene.choices[lastChoiceIndex].text:"—";
+    document.getElementById('yourReason').textContent='"'+lastReason+'"';
+    document.getElementById('theirChoice').textContent=lastScene.choices[lastScene.originalChoice]?.text||"—";
+    document.getElementById('theirReason').textContent='"'+(lastScene.originalReason||"—")+'"';
+
+    // 정렬도 표시 (Phase 1: 새 UI)
+    const alignmentValueEl=document.getElementById('finalAlignmentValue');
+    if(alignmentValueEl){
+        alignmentValueEl.textContent=currentAlignment.toFixed(2);
+        if(currentAlignment>=0.65){
+            alignmentValueEl.classList.add('true-ending');
+        }else{
+            alignmentValueEl.classList.remove('true-ending');
+        }
+    }
+
+    // 모든 장면 비교 데이터 생성
+    renderComparisonDetail(currentData.scenes);
+
+    // 트루엔딩 판정 (Phase 1: 0.65 이상)
+    const TRUE_ENDING_THRESHOLD = 0.65;
+    const isTrueEnding = currentAlignment >= TRUE_ENDING_THRESHOLD;
+    const rewardsSection = document.getElementById('trueEndingRewards');
+
+    if(isTrueEnding){
+        document.getElementById('trueEndingBadge').classList.add('active');
+        document.getElementById('endTitle').textContent='음각에 닿다';
+        document.getElementById('finalMessage').innerHTML='<strong>트루엔딩에 도달했습니다.</strong><br><br>당신은 그 사람의 감정 구조에 거의 겹쳐졌습니다.<br>이 일치는 원본 지층에 깊게 새겨질 거예요.';
+        // 트루엔딩 보상 표시
+        if(rewardsSection){
+            rewardsSection.style.display='block';
+        }
+    }else{
+        document.getElementById('trueEndingBadge').classList.remove('active');
+        document.getElementById('endTitle').textContent='기억의 끝에서';
+        document.getElementById('finalMessage').innerHTML='당신은 누군가의 기억 속을 걸었습니다.<br>같은 행동, 다른 이유. 다른 행동, 같은 정서.<br>완전한 이해는 불가능하지만, 당신의 해석은 이 기억의 윗층에 남습니다.';
+        // 트루엔딩 보상 숨김
+        if(rewardsSection){
+            rewardsSection.style.display='none';
+        }
+    }
+
+    startEndStrataAnimation();
+    setTimeout(()=>{
+        if(currentMode==='live'){
+            showNpcDialogue("이제 이 기억은 Live에서 Archive로 넘겨질 거야. 당신의 해석도 함께.",6000);
+        }else{
+            showNpcDialogue("이 기억의 지층 어딘가에, 방금 너의 선택과 이유가 얇은 층으로 남았어.",6000);
+        }
+    },2000);
+
+    const footer=document.querySelector('.footer');
+    if(footer)footer.classList.add('visible');
+}
+
+// Phase 1: 장면별 비교 렌더링
+function renderComparisonDetail(scenes){
+    const comparisonBody=document.getElementById('comparisonBody');
+    if(!comparisonBody||!scenes)return;
+
+    comparisonBody.innerHTML='';
+
+    scenes.forEach((scene,index)=>{
+        const userChoiceIdx=userChoices[index];
+        const userChoice=scene.choices?.[userChoiceIdx];
+        const originalChoice=scene.choices?.[scene.originalChoice];
+        const isMatch=userChoiceIdx===scene.originalChoice;
+
+        const row=document.createElement('div');
+        row.className='comparison-row';
+        row.innerHTML=`
+            <div class="comparison-cell scene-num">${index+1}</div>
+            <div class="comparison-cell choice-text">${userChoice?.text||'—'}</div>
+            <div class="comparison-cell choice-text">${originalChoice?.text||'—'}</div>
+            <div class="comparison-cell match ${isMatch?'yes':'no'}">${isMatch?'○':'✕'}</div>
+        `;
+        comparisonBody.appendChild(row);
+    });
+}
+
+// Phase 1: 비교 상세 토글
+function toggleComparisonDetail(){
+    const detail=document.getElementById('comparisonDetail');
+    const icon=document.getElementById('comparisonToggleIcon');
+    if(!detail)return;
+
+    if(detail.style.display==='none'||!detail.style.display){
+        detail.style.display='block';
+        if(icon)icon.classList.add('open');
+    }else{
+        detail.style.display='none';
+        if(icon)icon.classList.remove('open');
+    }
+}
+
+// Phase 1: 원본 기억 열람 모달
+function viewOriginalMemory(){
+    const modal=document.getElementById('originalModal');
+    const body=document.getElementById('originalBody');
+    if(!modal||!body)return;
+
+    const currentData=window.currentStoryData||storyData;
+    if(!currentData||!currentData.scenes)return;
+
+    body.innerHTML='';
+
+    currentData.scenes.forEach((scene,index)=>{
+        const originalChoice=scene.choices?.[scene.originalChoice];
+        const sceneDiv=document.createElement('div');
+        sceneDiv.className='original-scene';
+        sceneDiv.innerHTML=`
+            <div class="original-scene-num">장면 ${index+1}</div>
+            <div class="original-scene-text">${scene.text||''}</div>
+            ${originalChoice?`<div class="original-scene-choice">선택: ${originalChoice.text}</div>`:''}
+            ${scene.originalReason?`<div class="original-scene-reason">"${scene.originalReason}"</div>`:''}
+        `;
+        body.appendChild(sceneDiv);
+    });
+
+    modal.classList.add('active');
+}
+
+function closeOriginalModal(){
+    const modal=document.getElementById('originalModal');
+    if(modal)modal.classList.remove('active');
+}
+
+// Phase 1: 쪽지 모달
+function openNoteModal(){
+    const modal=document.getElementById('noteModal');
+    const textarea=document.getElementById('noteTextarea');
+    if(modal){
+        modal.classList.add('active');
+        if(textarea){
+            textarea.value='';
+            updateNoteCharCount();
+            textarea.focus();
+        }
+    }
+}
+
+function closeNoteModal(){
+    const modal=document.getElementById('noteModal');
+    if(modal)modal.classList.remove('active');
+}
+
+function updateNoteCharCount(){
+    const textarea=document.getElementById('noteTextarea');
+    const counter=document.getElementById('noteCharCount');
+    if(textarea&&counter){
+        counter.textContent=textarea.value.length;
+    }
+}
+
+// 쪽지 전송
+async function sendNote(){
+    const textarea=document.getElementById('noteTextarea');
+    if(!textarea||!textarea.value.trim()){
+        showNotification('메시지를 입력해주세요');
+        return;
+    }
+
+    const message=textarea.value.trim();
+    if(message.length>100){
+        showNotification('메시지는 100자 이내로 작성해주세요');
+        return;
+    }
+
+    // 위기 키워드 필터링
+    const crisisKeywords=['죽고 싶','자해','끝내고 싶','사라지고 싶','자살','목숨'];
+    const hasCrisis=crisisKeywords.some(kw=>message.includes(kw));
+    if(hasCrisis){
+        showNotification('전송할 수 없는 내용이 포함되어 있습니다');
+        return;
+    }
+
+    try{
+        supabaseClient = getSupabaseClient();
+        if(!supabaseClient){
+            showNotification('저장에 실패했습니다');
+            return;
+        }
+
+        const currentData=window.currentStoryData||storyData;
+        const noteData={
+            memory_id:currentData.id||null,
+            sender_session_id:currentSessionId||null,
+            recipient_user_id:currentData.narrator_id||null,
+            message:message
+        };
+
+        const{error}=await supabaseClient.from('notes').insert(noteData);
+
+        if(error){
+            console.error('쪽지 전송 실패:',error);
+            showNotification('전송에 실패했습니다');
+            return;
+        }
+
+        closeNoteModal();
+        showNotification('쪽지가 전송되었습니다');
+
+        // 쪽지 보내기 버튼 비활성화
+        const sendNoteBtn=document.getElementById('sendNoteBtn');
+        if(sendNoteBtn){
+            sendNoteBtn.disabled=true;
+            sendNoteBtn.textContent='쪽지 전송 완료';
+            sendNoteBtn.style.opacity='0.5';
+        }
+    }catch(e){
+        console.error('sendNote error:',e);
+        showNotification('전송 중 오류가 발생했습니다');
+    }
+}
+
+// Phase 1: 안전 모달
+function showSafetyModal(){
+    const modal=document.getElementById('safetyModal');
+    if(modal)modal.classList.add('active');
+}
+
+function closeSafetyModal(continueExperience){
+    const modal=document.getElementById('safetyModal');
+    if(modal)modal.classList.remove('active');
+
+    if(!continueExperience){
+        // 나가기 선택 시
+        goToIntro();
+    } else {
+        // 계속하기 선택 시 - 다음 장면으로 진행
+        const inputEl=document.getElementById('emotionInputField');
+        if(inputEl)inputEl.value='';
+        const currentData=window.currentStoryData||storyData;
+        if(currentData&&currentData.scenes){
+            if(currentScene<currentData.scenes.length-1){
+                currentScene++;
+                if(currentMode==='archive')renderScene();
+                else simulateNarratorInput();
+            }else{
+                showEndScreen();
+            }
+        }
+    }
+}
+
+// 위기 키워드 감지
+function checkForCrisis(text){
+    if(!text)return false;
+    const crisisKeywords=['죽고 싶','자해','끝내고 싶','사라지고 싶','자살','목숨','죽어버리','없어지고 싶'];
+    return crisisKeywords.some(kw=>text.includes(kw));
+}
 function startEndStrataAnimation(){const container=document.getElementById('endStrataContainer');const messageEl=document.getElementById('endStrataMessage');const contentEl=document.getElementById('endContent');const animationEl=document.getElementById('endStrataAnimation');if(!container||!messageEl||!contentEl||!animationEl)return;container.innerHTML='';const totalHeight=400;const layerHeight=totalHeight/6;const previousLayers=[{emotion:'fear',height:layerHeight},{emotion:'anger',height:layerHeight},{emotion:'shame',height:layerHeight},{emotion:'joy',height:layerHeight}];let currentBottom=totalHeight;const originalLayer=document.createElement('div');originalLayer.className='end-strata-layer end-strata-layer-original';originalLayer.style.height=layerHeight*2+'px';originalLayer.style.bottom=(currentBottom-layerHeight*2)+'px';container.appendChild(originalLayer);currentBottom-=layerHeight*2;previousLayers.forEach((layer,idx)=>{const layerEl=document.createElement('div');layerEl.className='end-strata-layer end-strata-layer-interpretation '+layer.emotion;layerEl.style.height=layer.height+'px';layerEl.style.bottom=(currentBottom-layer.height)+'px';layerEl.style.opacity='0';container.appendChild(layerEl);setTimeout(()=>{layerEl.style.opacity='1'},100*idx);currentBottom-=layer.height});const userEmotion=getUserDominantEmotion();const newLayer=document.createElement('div');newLayer.className='end-strata-layer end-strata-layer-new '+userEmotion;newLayer.style.height=layerHeight+'px';newLayer.style.bottom=totalHeight+'px';container.appendChild(newLayer);setTimeout(()=>{newLayer.style.transform='translateY(0)';newLayer.style.opacity='1';messageEl.classList.add('visible')},500);setTimeout(()=>{animationEl.style.transform='translate(-50%,-50%) scale(0.3)';animationEl.style.top='10%';animationEl.style.transition='all 1s ease-out';contentEl.style.opacity='1'},1500)}
 function getUserDominantEmotion(){const emotions=['fear','sadness','guilt','anger','longing','isolation','numbness','moralPain'];const lastScene=window.currentStoryData?.scenes?.[window.currentStoryData.scenes.length-1];if(lastScene&&lastScene.emotionDist){const dist=lastScene.emotionDist;let max=0,dominant='fear';if((dist.fear||0)>max){max=dist.fear;dominant='fear'}if((dist.sadness||0)>max){max=dist.sadness;dominant='sadness'}if((dist.guilt||0)>max){max=dist.guilt;dominant='guilt'}if((dist.anger||0)>max){max=dist.anger;dominant='anger'}if((dist.longing||0)>max){max=dist.longing;dominant='longing'}if((dist.isolation||0)>max){max=dist.isolation;dominant='isolation'}if((dist.numbness||0)>max){max=dist.numbness;dominant='numbness'}if((dist.moralPain||0)>max){max=dist.moralPain;dominant='moralPain'}return dominant}return emotions[Math.floor(Math.random()*emotions.length)]}
 function restart(){currentMode=null;currentRole=null;sessionCode=null;currentMemory=null;currentScene=0;userChoices=[];userReasons=[];currentAlignment=0;liveSceneNum=1;liveFragments=0;liveMatches=0;const endScreenEl=document.getElementById('endScreen');if(endScreenEl){endScreenEl.classList.remove('active');endScreenEl.style.display='none'}const liveContainerEl=document.getElementById('liveContainer');if(liveContainerEl){liveContainerEl.classList.remove('active');liveContainerEl.style.display='none'}const archiveContainerEl=document.getElementById('archiveContainer');if(archiveContainerEl){archiveContainerEl.classList.remove('active');archiveContainerEl.style.display='none'}const memoryListEl=document.getElementById('memoryList');if(memoryListEl)memoryListEl.style.display='grid';const sceneViewerEl=document.getElementById('sceneViewer');if(sceneViewerEl){sceneViewerEl.classList.remove('active');sceneViewerEl.style.display='none'}const introScreen=document.getElementById('introScreen');if(introScreen){introScreen.classList.remove('hidden');introScreen.classList.add('visible');introScreen.style.cssText='display:flex !important;opacity:1 !important;visibility:visible !important;pointer-events:auto !important;z-index:2000 !important'}const narratorPanelEl=document.getElementById('narratorPanel');if(narratorPanelEl)narratorPanelEl.classList.remove('active');const experiencerPanelEl=document.getElementById('experiencerPanel');if(experiencerPanelEl)experiencerPanelEl.classList.remove('active');const interpretationTraceEl=document.getElementById('interpretationTrace');if(interpretationTraceEl)interpretationTraceEl.style.display='none';const liveSceneContentEl=document.getElementById('liveSceneContent');if(liveSceneContentEl)liveSceneContentEl.textContent='화자가 기억을 불러오고 있습니다...';const feelingInput=document.getElementById('experiencerFeelingInput');if(feelingInput)feelingInput.value='';const memoryTraceContent=document.getElementById('memoryTraceContent');if(memoryTraceContent)memoryTraceContent.textContent='—';const liveAlignmentValueEl=document.getElementById('liveAlignmentValue');if(liveAlignmentValueEl){liveAlignmentValueEl.textContent='0.00';liveAlignmentValueEl.classList.remove('high')}const liveAlignmentFillEl=document.getElementById('liveAlignmentFill');if(liveAlignmentFillEl)liveAlignmentFillEl.style.width='0%';const liveSceneNumEl=document.getElementById('liveSceneNum');if(liveSceneNumEl)liveSceneNumEl.textContent='1';const liveFragmentsEl=document.getElementById('liveFragments');if(liveFragmentsEl)liveFragmentsEl.textContent='0';const liveMatchesEl=document.getElementById('liveMatches');if(liveMatchesEl)liveMatchesEl.textContent='0';const footer=document.querySelector('.footer');if(footer)footer.classList.remove('visible')}
