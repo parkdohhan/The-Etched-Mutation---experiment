@@ -1,30 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import SvgAsciiScene from './components/SvgAsciiScene';
+import FloatingAnchor from './components/FloatingAnchor';
 
 const PRESETS = {
   hospital: {
     name: '병원',
-    prompt: 'A dark hospital room at night, empty bed with rumpled white sheets, IV stand, cold fluorescent light on ceiling, window with faint moonlight, medical monitor, photorealistic, cinematic, moody, dark atmosphere, 4k',
-    anchorKeyword: '침대',
-    anchorZone: { rStart: 0.30, rEnd: 0.65, cStart: 0.25, cEnd: 0.70 },
+    sceneText: '병실 창문 밖 비',
+    anchorObject: '침대',
+    emotion: '슬픔',
+    temperature: '차가',
+    smell: '',
+    sound: '기계',
   },
   beach: {
     name: '바닷가',
-    prompt: 'A dark beach at night, moonlight on calm ocean, wet sand with a single seashell, driftwood, rocks, footprints, photorealistic, cinematic, melancholic, dark atmosphere, 4k',
-    anchorKeyword: '조개껍질',
-    anchorZone: { rStart: 0.50, rEnd: 0.75, cStart: 0.30, cEnd: 0.55 },
+    sceneText: '바닷가 밤 달빛',
+    anchorObject: '조개껍질',
+    emotion: '그리움',
+    temperature: '서늘',
+    smell: '',
+    sound: '',
   },
   room: {
     name: '방',
-    prompt: 'A dimly lit room, afternoon sunlight through window, picture frame on wall, wooden desk with books, dust in light beam, bookshelf, photorealistic, nostalgic, dark atmosphere, 4k',
-    anchorKeyword: '액자',
-    anchorZone: { rStart: 0.10, rEnd: 0.45, cStart: 0.15, cEnd: 0.45 },
+    sceneText: '방 오후 창문 햇빛',
+    anchorObject: '액자',
+    emotion: '후회',
+    temperature: '따뜻',
+    smell: '',
+    sound: '시계',
   },
 };
 
-const LEVEL_LABELS = ['실사 (앵커만)', 'ASCII (앵커)', '텍스트 (앵커)'];
+const LEVEL_LABELS = ['실사', 'ASCII', '텍스트'];
 
 function getLevel(alignment) {
   if (alignment >= 0.65) return 0;
@@ -33,10 +42,9 @@ function getLevel(alignment) {
 }
 
 export default function Page() {
-  const [mode, setMode] = useState('prompt'); // 'prompt' | 'scene'
+  const [mode, setMode] = useState('scene'); // 'prompt' | 'scene'
   const [prompt, setPrompt] = useState('');
   const [anchorKeyword, setAnchorKeyword] = useState('');
-  const [anchorZone, setAnchorZone] = useState({ rStart: 0.3, rEnd: 0.7, cStart: 0.25, cEnd: 0.75 });
   const [sceneText, setSceneText] = useState('');
   const [anchorObject, setAnchorObject] = useState('');
   const [emotion, setEmotion] = useState('');
@@ -50,9 +58,14 @@ export default function Page() {
 
   const applyPreset = (key) => {
     const p = PRESETS[key];
-    setPrompt(p.prompt);
-    setAnchorKeyword(p.anchorKeyword);
-    setAnchorZone(p.anchorZone);
+    setMode('scene');
+    setSceneText(p.sceneText);
+    setAnchorObject(p.anchorObject);
+    setEmotion(p.emotion || '');
+    setTemperature(p.temperature || '');
+    setSmell(p.smell || '');
+    setSound(p.sound || '');
+    setAnchorKeyword(p.anchorObject);
     setError(null);
   };
 
@@ -78,12 +91,10 @@ export default function Page() {
             smell: smell.trim() || undefined,
             sound: sound.trim() || undefined,
             anchorKeyword: anchorObject.trim(),
-            anchorZone,
           }
         : {
             prompt: prompt.trim(),
             anchorKeyword: anchorKeyword.trim() || 'anchor',
-            anchorZone,
           };
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -245,8 +256,8 @@ export default function Page() {
       </section>
 
       <section style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, marginBottom: 8 }}>Anchor 설정</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, marginBottom: 8 }}>Anchor 설정 (직접 프롬프트 모드)</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
           <div>
             <label style={{ marginRight: 6, fontSize: 12 }}>키워드</label>
             <input
@@ -264,29 +275,6 @@ export default function Page() {
                 fontSize: 12,
               }}
             />
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {['rStart', 'rEnd', 'cStart', 'cEnd'].map((k) => (
-              <div key={k}>
-                <label style={{ marginRight: 4, fontSize: 11 }}>{k}</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={anchorZone[k]}
-                  onChange={(e) => setAnchorZone((z) => ({ ...z, [k]: parseFloat(e.target.value) || 0 }))}
-                  style={{
-                    width: 56,
-                    padding: '4px 6px',
-                    background: 'rgba(196,168,130,0.03)',
-                    border: '1px solid rgba(196,168,130,0.1)',
-                    color: '#c4a882',
-                    fontSize: 11,
-                  }}
-                />
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -327,38 +315,16 @@ export default function Page() {
 
       {result && (
         <section style={{ marginTop: 28 }}>
-          <div style={{ marginBottom: 12, fontSize: 12, opacity: 0.8 }}>원본 (참고)</div>
-          <div style={{ marginBottom: 16 }}>
-            <img
-              src={result.imageUrl}
-              alt="원본"
-              style={{
-                maxWidth: '100%',
-                width: 280,
-                height: 'auto',
-                border: '1px solid rgba(196,168,130,0.1)',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 8, fontSize: 12 }}>ASCII 장면</div>
-          <div style={{
-            overflow: 'auto',
-            maxHeight: 420,
-            border: '1px solid rgba(196,168,130,0.1)',
-            background: '#08080e',
-          }}>
-            <SvgAsciiScene
-              matrix={result.matrix}
-              alignment={alignment}
-              anchorZone={result.anchorZone}
-              anchorKeyword={result.anchorKeyword}
-              imageUrl={result.imageUrl}
-              anchorImageUrl={result.anchorImageUrl}
-              anchorMatrix={result.anchorMatrix}
-            />
-          </div>
-
+          <div style={{ marginBottom: 8, fontSize: 12 }}>장면</div>
+          <FloatingAnchor
+            anchorKeyword={result.anchorKeyword}
+            anchorImageUrl={result.anchorImageUrl ?? result.imageUrl ?? null}
+            anchorAscii={result.anchorAscii ?? null}
+            memoryText={result.memoryText ?? ''}
+            alignment={alignment}
+            width={580}
+            height={450}
+          />
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
               <span>정렬도</span>

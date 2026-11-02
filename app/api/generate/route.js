@@ -1,6 +1,6 @@
 import Replicate from 'replicate';
-import { imageToMatrix } from '@/lib/imageToMatrix';
-import { buildBackgroundPrompt, buildAnchorObjectPrompt } from '@/lib/promptSystem';
+import { imageToMatrix, removeWhiteBackground } from '@/lib/imageToMatrix';
+import { buildAnchorObjectPrompt } from '@/lib/promptSystem';
 
 async function getImageUrl(output) {
   const getUrl = async (v) => {
@@ -14,6 +14,20 @@ async function getImageUrl(output) {
   };
   const first = Array.isArray(output) && output.length > 0 ? output[0] : output;
   return first ? getUrl(first) : null;
+}
+
+function matrixToAsciiString(matrix) {
+  const { rows, cols, cells } = matrix;
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    let line = '';
+    for (let c = 0; c < cols; c++) {
+      const cell = cells[r * cols + c];
+      line += cell ? cell.char : ' ';
+    }
+    lines.push(line);
+  }
+  return lines.join('\n');
 }
 
 export async function POST(request) {
@@ -44,24 +58,16 @@ export async function POST(request) {
   } = body;
 
   const useSceneMode = !!(sceneText && anchorObject);
-  let prompt;
   let anchorPrompt;
   if (useSceneMode) {
-    prompt = buildBackgroundPrompt({
-      sceneText: String(sceneText).trim(),
-      anchorObject: String(anchorObject).trim(),
-      emotion: emotion ? String(emotion).trim() : undefined,
-      temperature: temperature ? String(temperature).trim() : undefined,
-      smell: smell ? String(smell).trim() : undefined,
-      sound: sound ? String(sound).trim() : undefined,
-    });
     anchorPrompt = buildAnchorObjectPrompt({
       anchorObject: String(anchorObject).trim(),
       sceneText: String(sceneText).trim(),
       emotion: emotion ? String(emotion).trim() : undefined,
     });
+    console.log('[PROMPT] anchor:', anchorPrompt);
   } else if (rawPrompt && typeof rawPrompt === 'string' && rawPrompt.trim()) {
-    prompt = rawPrompt.trim();
+    // 직접 프롬프트 모드
   } else {
     return Response.json({ error: 'prompt 또는 (sceneText + anchorObject) 필요' }, { status: 400 });
   }
@@ -70,7 +76,7 @@ export async function POST(request) {
     auth: process.env.REPLICATE_API_TOKEN,
   });
 
-  const runFlux = async (p) => {
+  const runFlux = async (p, aspectRatio = '4:3') => {
     let out;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -78,7 +84,7 @@ export async function POST(request) {
           input: {
             prompt: p,
             num_outputs: 1,
-            aspect_ratio: '4:3',
+            aspect_ratio: aspectRatio,
             output_format: 'webp',
             output_quality: 80,
             go_fast: true,
@@ -118,52 +124,63 @@ export async function POST(request) {
   };
 
   if (useSceneMode) {
-    const [sceneOutput, anchorOutput] = await Promise.all([
-      runFlux(prompt),
-      runFlux(anchorPrompt),
-    ]);
-    const sceneBuffer = await toBuffer(sceneOutput);
-    const anchorBuffer = await toBuffer(anchorOutput);
-    if (!sceneBuffer) {
-      return Response.json({ error: '배경 이미지 생성/다운로드 실패' }, { status: 502 });
+    const anchorObj = String(anchorObject).trim();
+
+    let anchorOutput;
+    try {
+      anchorOutput = await runFlux(anchorPrompt, '1:1');
+    } catch (err) {
+      console.error('Scene mode error:', err);
+      return Response.json(
+        { error: err.message || '앵커 이미지(Flux) 생성 실패' },
+        { status: 502 }
+      );
     }
+
+    const anchorBuffer = await toBuffer(anchorOutput);
     if (!anchorBuffer) {
       return Response.json({ error: '앵커 이미지 생성/다운로드 실패' }, { status: 502 });
     }
-    let matrix;
+
+    // 누끼 적용 (모서리 샘플링 → 투명 PNG)
+    const cleanedBuffer = await removeWhiteBackground(anchorBuffer, 60, 40);
+    const anchorImageUrl = `data:image/png;base64,${cleanedBuffer.toString('base64')}`;
+
+    // ASCII 변환은 원본 buffer로 (누끼 전 — 투명 영역이 ASCII에 영향주면 안 됨)
     let anchorMatrix;
-    let sceneImageUrl;
-    let anchorImageUrl;
     try {
-      matrix = await imageToMatrix(sceneBuffer, 100);
       anchorMatrix = await imageToMatrix(anchorBuffer, 48);
-      sceneImageUrl = `data:image/webp;base64,${sceneBuffer.toString('base64')}`;
-      anchorImageUrl = `data:image/webp;base64,${anchorBuffer.toString('base64')}`;
     } catch (err) {
       console.error('imageToMatrix error:', err);
-      return Response.json({ error: err.message || 'ASCII 변환 실패' }, { status: 500 });
+      return Response.json({ error: err.message || '앵커 ASCII 변환 실패' }, { status: 500 });
     }
-    const kw = (anchorObject && String(anchorObject).trim()) ? String(anchorObject).trim() : (anchorKeyword || '');
-    const zone = anchorZone || { rStart: 0.3, rEnd: 0.7, cStart: 0.25, cEnd: 0.75 };
+    const anchorAscii = matrixToAsciiString(anchorMatrix);
+
+    const memoryText = [
+      String(sceneText).trim(),
+      anchorObj,
+      emotion && String(emotion).trim(),
+      temperature && `${String(temperature).trim()} 공기`,
+      smell && `${String(smell).trim()} 냄새`,
+      sound && `${String(sound).trim()} 소리`,
+    ].filter(Boolean).join(' · ');
+
+    const kw = anchorObj || anchorKeyword || '';
     return Response.json({
-      imageUrl: sceneImageUrl,
-      matrix,
       anchorImageUrl,
-      anchorMatrix,
+      anchorAscii,
       anchorKeyword: kw,
-      anchorZone: zone,
+      memoryText,
     });
   }
 
-  let lastError;
+  const prompt = rawPrompt.trim();
   let output;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       output = await runFlux(prompt);
-      lastError = null;
       break;
     } catch (err) {
-      lastError = err;
       if (attempt === 3) {
         return Response.json(
           { error: err.message || 'Image generation failed' },
